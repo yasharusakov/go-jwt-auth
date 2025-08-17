@@ -1,0 +1,45 @@
+services:
+  postgres:
+    image: postgres:alpine
+    env_file: .env
+    environment:
+        - POSTGRES_USER=${POSTGRES_USER}
+        - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+        - POSTGRES_DB=${POSTGRES_DB}
+    ports:
+      - "5432:5432"
+    networks:
+      - backend
+    restart: always
+
+  server:
+    build:
+      context: ./server
+    ports:
+      - "8080:8080"
+    environment:
+      - APP_ENV=${APP_ENV}
+      - PORT=${PORT}
+      - CLIENT_URL=${CLIENT_URL}
+      - POSTGRESQL_URI=${POSTGRESQL_URI}
+      - JWT_ACCESS_TOKEN_SECRET=${JWT_ACCESS_TOKEN_SECRET}
+      - JWT_REFRESH_TOKEN_SECRET=${JWT_REFRESH_TOKEN_SECRET}
+      - JWT_ACCESS_TOKEN_EXPIRATION=${JWT_ACCESS_TOKEN_EXPIRATION}
+      - JWT_REFRESH_TOKEN_EXPIRATION=${JWT_REFRESH_TOKEN_EXPIRATION}
+    depends_on:
+      - postgres
+    networks:
+      - backend
+    restart: always
+
+  client:
+    build:
+      context: ./client
+      args:
+        VITE_API_URL: ${API_URL}
+    ports:
+      - "3000:80"
+    restart: always
+
+networks:
+  backend:

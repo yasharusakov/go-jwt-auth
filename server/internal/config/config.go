@@ -35,7 +35,7 @@ func getEnv(key, fallback string) string {
 
 func LoadConfig() Config {
 	if err := godotenv.Load(".env"); err != nil {
-		log.Fatal(err.Error())
+		log.Printf("Error loading .env file: %v", err)
 	}
 
 	return Config{
@@ -46,10 +46,10 @@ func LoadConfig() Config {
 			POSTGRESQL_URI: os.Getenv("POSTGRESQL_URI"),
 		},
 		JWT: JWT_CONFIG{
-			JWT_ACCESS_TOKEN_SECRET:      getEnv("JWT_ACCESS_TOKEN_SECRET", "jwt_access_token_secret"),
-			JWT_REFRESH_TOKEN_SECRET:     getEnv("JWT_REFRESH_TOKEN_SECRET", "jwt_refresh_token_secret"),
-			JWT_ACCESS_TOKEN_EXPIRATION:  getEnv("JWT_ACCESS_TOKEN_EXPIRATION", "15m"),
-			JWT_REFRESH_TOKEN_EXPIRATION: getEnv("JWT_REFRESH_TOKEN_EXPIRATION", "24h"),
+			JWT_ACCESS_TOKEN_SECRET:      os.Getenv("JWT_ACCESS_TOKEN_SECRET"),
+			JWT_REFRESH_TOKEN_SECRET:     os.Getenv("JWT_REFRESH_TOKEN_SECRET"),
+			JWT_ACCESS_TOKEN_EXPIRATION:  os.Getenv("JWT_ACCESS_TOKEN_EXPIRATION"),
+			JWT_REFRESH_TOKEN_EXPIRATION: os.Getenv("JWT_REFRESH_TOKEN_EXPIRATION"),
 		},
 	}
 }
