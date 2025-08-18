@@ -1,9 +1,10 @@
 package config
 
 import (
-	"github.com/joho/godotenv"
 	"log"
 	"os"
+
+	"github.com/joho/godotenv"
 )
 
 type POSTGRESQL_CONFIG struct {
@@ -18,11 +19,12 @@ type JWT_CONFIG struct {
 }
 
 type Config struct {
-	APP_ENV    string
-	PORT       string
-	CLIENT_URL string
-	POSTGRESQL POSTGRESQL_CONFIG
-	JWT        JWT_CONFIG
+	APP_ENV     string
+	API_PORT    string
+	CLIENT_PORT string
+	CLIENT_URL  string
+	POSTGRESQL  POSTGRESQL_CONFIG
+	JWT         JWT_CONFIG
 }
 
 func getEnv(key, fallback string) string {
@@ -33,15 +35,18 @@ func getEnv(key, fallback string) string {
 	return fallback
 }
 
+// FIXME: The environment file is loaded every time this function is called and should be loaded only once
 func LoadConfig() Config {
-	if err := godotenv.Load(".env"); err != nil {
-		log.Printf("Error loading .env file: %v", err)
+	// FIXME: It prints an error if the .env.development file is not found, but I have others like prod or docker.
+	if err := godotenv.Load(".env.development"); err != nil {
+		log.Printf("Error loading .env.development file: %v", err)
 	}
 
 	return Config{
-		APP_ENV:    getEnv("APP_ENV", "development"),
-		PORT:       getEnv("PORT", "8080"),
-		CLIENT_URL: getEnv("CLIENT_URL", "*"),
+		APP_ENV:     getEnv("APP_ENV", "development"),
+		API_PORT:    getEnv("API_PORT", "8080"),
+		CLIENT_PORT: getEnv("CLIENT_PORT", "3000"),
+		CLIENT_URL:  getEnv("CLIENT_URL", "*"),
 		POSTGRESQL: POSTGRESQL_CONFIG{
 			POSTGRESQL_URI: os.Getenv("POSTGRESQL_URI"),
 		},
