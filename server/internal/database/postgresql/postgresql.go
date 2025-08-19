@@ -44,11 +44,11 @@ func createTables(ctx context.Context) error {
 	return nil
 }
 
-func Connect(config config.POSTGRESQL_CONFIG) error {
+func Connect(config config.PostgresqlConfig) error {
 	var err error
 	ctx := context.Background()
 
-	Pool, err = pgxpool.New(ctx, config.POSTGRESQL_URI)
+	Pool, err = pgxpool.New(ctx, config.PostgresqlUri)
 	if err != nil {
 		return fmt.Errorf("failed to connect to the database: %w", err)
 	}
