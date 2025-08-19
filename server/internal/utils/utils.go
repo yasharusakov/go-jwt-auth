@@ -21,15 +21,15 @@ func GenerateToken(userID int, ttl time.Duration, secret []byte) (string, error)
 
 func GenerateTokens(userID int) (string, string, error) {
 	cfg := config.LoadConfig().JWT
-	accessTokenExpiration, err := time.ParseDuration(cfg.JWT_ACCESS_TOKEN_EXPIRATION)
-	refreshTokenExpiration, err := time.ParseDuration(cfg.JWT_REFRESH_TOKEN_EXPIRATION)
+	accessTokenExpiration, err := time.ParseDuration(cfg.JwtAccessTokenExpiration)
+	refreshTokenExpiration, err := time.ParseDuration(cfg.JwtRefreshTokenExpiration)
 
-	accessToken, err := GenerateToken(userID, accessTokenExpiration, []byte(cfg.JWT_ACCESS_TOKEN_SECRET))
+	accessToken, err := GenerateToken(userID, accessTokenExpiration, []byte(cfg.JwtAccessTokenSecret))
 	if err != nil {
 		return "", "", fmt.Errorf("failed to generate access token: %w", err)
 	}
 
-	refreshToken, err := GenerateToken(userID, refreshTokenExpiration, []byte(cfg.JWT_REFRESH_TOKEN_SECRET))
+	refreshToken, err := GenerateToken(userID, refreshTokenExpiration, []byte(cfg.JwtRefreshTokenSecret))
 	if err != nil {
 		return "", "", fmt.Errorf("failed to generate refresh token: %w", err)
 	}

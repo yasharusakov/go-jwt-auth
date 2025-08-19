@@ -21,7 +21,7 @@ func Run() {
 
 	router := routes.SetupRoutes()
 
-	log.Println("Server is running on port: " + cfg.API_PORT)
+	log.Println("Server is running on port: " + cfg.ApiPort)
 
-	log.Fatal(http.ListenAndServe(":"+cfg.API_PORT, router))
+	log.Fatal(http.ListenAndServe(":"+cfg.ApiPort, router))
 }

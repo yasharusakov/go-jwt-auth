@@ -3,29 +3,35 @@ package config
 import (
 	"log"
 	"os"
+	"sync"
 
 	"github.com/joho/godotenv"
 )
 
-type POSTGRESQL_CONFIG struct {
-	POSTGRESQL_URI string
+type PostgresqlConfig struct {
+	PostgresqlUri string
 }
 
-type JWT_CONFIG struct {
-	JWT_ACCESS_TOKEN_SECRET      string
-	JWT_REFRESH_TOKEN_SECRET     string
-	JWT_ACCESS_TOKEN_EXPIRATION  string
-	JWT_REFRESH_TOKEN_EXPIRATION string
+type JwtConfig struct {
+	JwtAccessTokenSecret      string
+	JwtRefreshTokenSecret     string
+	JwtAccessTokenExpiration  string
+	JwtRefreshTokenExpiration string
 }
 
 type Config struct {
-	APP_ENV     string
-	API_PORT    string
-	CLIENT_PORT string
-	CLIENT_URL  string
-	POSTGRESQL  POSTGRESQL_CONFIG
-	JWT         JWT_CONFIG
+	AppEnv     string
+	ApiPort    string
+	ClientPort string
+	ClientUrl  string
+	POSTGRESQL PostgresqlConfig
+	JWT        JwtConfig
 }
+
+var (
+	config *Config
+	once   sync.Once
+)
 
 func getEnv(key, fallback string) string {
 	if value := os.Getenv(key); value != "" {
@@ -35,26 +41,39 @@ func getEnv(key, fallback string) string {
 	return fallback
 }
 
-// FIXME: The environment file is loaded every time this function is called and should be loaded only once
-func LoadConfig() Config {
-	// FIXME: It prints an error if the .env.development file is not found, but I have others like prod or docker.
-	if err := godotenv.Load(".env.development"); err != nil {
-		log.Printf("Error loading .env.development file: %v", err)
+func loadEnv() {
+	if os.Getenv("APP_ENV") == "docker" {
+		log.Println("Docker environment detected, loaded successfully.")
+	} else {
+		if err := godotenv.Load(".env.development"); err != nil {
+			log.Fatalf("Error loading .env.development file: %v", err)
+		} else {
+			log.Println("Development environment detected, loaded successfully.")
+			return
+		}
 	}
+}
 
-	return Config{
-		APP_ENV:     getEnv("APP_ENV", "development"),
-		API_PORT:    getEnv("API_PORT", "8080"),
-		CLIENT_PORT: getEnv("CLIENT_PORT", "3000"),
-		CLIENT_URL:  getEnv("CLIENT_URL", "*"),
-		POSTGRESQL: POSTGRESQL_CONFIG{
-			POSTGRESQL_URI: os.Getenv("POSTGRESQL_URI"),
-		},
-		JWT: JWT_CONFIG{
-			JWT_ACCESS_TOKEN_SECRET:      os.Getenv("JWT_ACCESS_TOKEN_SECRET"),
-			JWT_REFRESH_TOKEN_SECRET:     os.Getenv("JWT_REFRESH_TOKEN_SECRET"),
-			JWT_ACCESS_TOKEN_EXPIRATION:  os.Getenv("JWT_ACCESS_TOKEN_EXPIRATION"),
-			JWT_REFRESH_TOKEN_EXPIRATION: os.Getenv("JWT_REFRESH_TOKEN_EXPIRATION"),
-		},
-	}
+func LoadConfig() *Config {
+	once.Do(func() {
+		loadEnv()
+
+		config = &Config{
+			AppEnv:     getEnv("APP_ENV", "development"),
+			ApiPort:    getEnv("API_PORT", "8080"),
+			ClientPort: getEnv("CLIENT_PORT", "3000"),
+			ClientUrl:  getEnv("CLIENT_URL", "*"),
+			POSTGRESQL: PostgresqlConfig{
+				PostgresqlUri: os.Getenv("POSTGRESQL_URI"),
+			},
+			JWT: JwtConfig{
+				JwtAccessTokenSecret:      os.Getenv("JWT_ACCESS_TOKEN_SECRET"),
+				JwtRefreshTokenSecret:     os.Getenv("JWT_REFRESH_TOKEN_SECRET"),
+				JwtAccessTokenExpiration:  os.Getenv("JWT_ACCESS_TOKEN_EXPIRATION"),
+				JwtRefreshTokenExpiration: os.Getenv("JWT_REFRESH_TOKEN_EXPIRATION"),
+			},
+		}
+	})
+
+	return config
 }
