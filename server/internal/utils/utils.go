@@ -2,12 +2,12 @@ package utils
 
 import (
 	"fmt"
-	"github.com/golang-jwt/jwt/v5"
 	"net/http"
 	"os"
 	"server/internal/config"
-	"server/internal/repositories"
 	"time"
+
+	"github.com/golang-jwt/jwt/v5"
 )
 
 func GenerateToken(userID int, ttl time.Duration, secret []byte) (string, error) {
@@ -68,20 +68,8 @@ func SetRefreshTokenCookie(w http.ResponseWriter, refreshToken string, expRefres
 	})
 }
 
-func RemoveRefreshTokenCookie(w http.ResponseWriter, r *http.Request) {
+func RemoveRefreshTokenCookie(w http.ResponseWriter) {
 	secure := os.Getenv("APP_ENV") == "production"
-
-	cookie, err := r.Cookie("refresh_token")
-	if err != nil {
-		http.Error(w, "error retrieving refresh token cookie", http.StatusUnauthorized)
-		return
-	}
-
-	err = repositories.RemoveRefreshTokenFromDB(r.Context(), cookie.Value)
-	if err != nil {
-		http.Error(w, "error removing refresh token from database", http.StatusInternalServerError)
-		return
-	}
 
 	http.SetCookie(w, &http.Cookie{
 		Name:     "refresh_token",

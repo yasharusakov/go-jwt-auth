@@ -2,10 +2,14 @@ package routes
 
 import (
 	"net/http"
-	"server/internal/handlers/user"
-	"server/internal/middlewares"
+	"server/internal/handler"
+	"server/internal/middleware"
 )
 
-func RegisterUserRoutes(mux *http.ServeMux) {
-	mux.HandleFunc("/api/users", middlewares.CORSMiddleware(middlewares.AuthMiddleware(user.GetUsers)))
+func RegisterUserRoutes(mux *http.ServeMux, userHandler handler.UserHandler) {
+	mux.HandleFunc("/api/users",
+		middleware.CORSMiddleware(
+			middleware.AuthMiddleware(userHandler.GetAllUsers),
+		),
+	)
 }

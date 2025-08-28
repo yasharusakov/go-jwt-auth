@@ -8,8 +8,13 @@ import (
 	"github.com/joho/godotenv"
 )
 
-type PostgresqlConfig struct {
-	PostgresqlUri string
+type PostgresConfig struct {
+	PostgresUser     string
+	PostgresPassword string
+	PostgresHost     string
+	PostgresPort     string
+	PostgresDB       string
+	PostgresSSLMode  string
 }
 
 type JwtConfig struct {
@@ -24,7 +29,7 @@ type Config struct {
 	ApiPort    string
 	ClientPort string
 	ClientUrl  string
-	POSTGRESQL PostgresqlConfig
+	Postgres   PostgresConfig
 	JWT        JwtConfig
 }
 
@@ -63,8 +68,13 @@ func LoadConfig() *Config {
 			ApiPort:    getEnv("API_PORT", "8080"),
 			ClientPort: getEnv("CLIENT_PORT", "3000"),
 			ClientUrl:  getEnv("CLIENT_URL", "*"),
-			POSTGRESQL: PostgresqlConfig{
-				PostgresqlUri: os.Getenv("POSTGRESQL_URI"),
+			Postgres: PostgresConfig{
+				PostgresUser:     os.Getenv("POSTGRES_USER"),
+				PostgresPassword: os.Getenv("POSTGRES_PASSWORD"),
+				PostgresHost:     os.Getenv("POSTGRES_HOST"),
+				PostgresPort:     os.Getenv("POSTGRES_PORT"),
+				PostgresDB:       os.Getenv("POSTGRES_DB"),
+				PostgresSSLMode:  os.Getenv("POSTGRES_SSL_MODE"),
 			},
 			JWT: JwtConfig{
 				JwtAccessTokenSecret:      os.Getenv("JWT_ACCESS_TOKEN_SECRET"),

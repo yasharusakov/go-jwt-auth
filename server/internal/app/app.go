@@ -1,25 +1,35 @@
 package app
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"server/internal/config"
-	"server/internal/database/postgresql"
+	"server/internal/database"
+	"server/internal/handler"
+	"server/internal/repository"
 	"server/internal/routes"
+	"server/internal/service"
 )
 
 func Run() {
+	ctx := context.Background()
 	cfg := config.LoadConfig()
 
-	if err := postgresql.Connect(cfg.POSTGRESQL); err != nil {
-		log.Fatal("Error occurred while connecting to the database: ", err)
+	postgres, err := database.NewPostgres(ctx, cfg.Postgres)
+	if err != nil {
+		log.Fatal("Error occurred while initializing postgres: ", err)
 	}
 	defer func() {
-		log.Println("Closing database connection...")
-		postgresql.Pool.Close()
+		log.Println("Closing initial postgres connection...")
+		postgres.Close()
 	}()
 
-	router := routes.SetupRoutes()
+	repositories := repository.NewRepositories(postgres)
+	services := service.NewServices(repositories)
+	handlers := handler.NewHandlers(services)
+
+	router := routes.SetupRoutes(handlers)
 
 	log.Println("Server is running on port: " + cfg.ApiPort)
 
