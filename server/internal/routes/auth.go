@@ -2,13 +2,13 @@ package routes
 
 import (
 	"net/http"
-	"server/internal/handlers/auth"
-	"server/internal/middlewares"
+	"server/internal/handler"
+	"server/internal/middleware"
 )
 
-func RegisterAuthRoutes(mux *http.ServeMux) {
-	mux.HandleFunc("/api/login", middlewares.CORSMiddleware(auth.Login))
-	mux.HandleFunc("/api/register", middlewares.CORSMiddleware(auth.Register))
-	mux.HandleFunc("/api/logout", middlewares.CORSMiddleware(auth.Logout))
-	mux.HandleFunc("/api/refresh", middlewares.CORSMiddleware(auth.Refresh))
+func RegisterAuthRoutes(mux *http.ServeMux, authHandler handler.AuthHandler) {
+	mux.HandleFunc("/api/login", middleware.CORSMiddleware(authHandler.Login))
+	mux.HandleFunc("/api/register", middleware.CORSMiddleware(authHandler.Register))
+	mux.HandleFunc("/api/logout", middleware.CORSMiddleware(authHandler.Logout))
+	mux.HandleFunc("/api/refresh", middleware.CORSMiddleware(authHandler.Refresh))
 }

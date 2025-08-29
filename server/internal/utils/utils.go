@@ -5,8 +5,6 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"net/http"
 	"os"
-	"server/internal/config"
-	"server/internal/repositories"
 	"time"
 )
 
@@ -20,16 +18,15 @@ func GenerateToken(userID int, ttl time.Duration, secret []byte) (string, error)
 }
 
 func GenerateTokens(userID int) (string, string, error) {
-	cfg := config.LoadConfig().JWT
-	accessTokenExpiration, err := time.ParseDuration(cfg.JwtAccessTokenExpiration)
-	refreshTokenExpiration, err := time.ParseDuration(cfg.JwtRefreshTokenExpiration)
+	accessTokenExpiration, err := time.ParseDuration(os.Getenv("JWT_ACCESS_TOKEN_EXPIRATION"))
+	refreshTokenExpiration, err := time.ParseDuration(os.Getenv("JWT_REFRESH_TOKEN_EXPIRATION"))
 
-	accessToken, err := GenerateToken(userID, accessTokenExpiration, []byte(cfg.JwtAccessTokenSecret))
+	accessToken, err := GenerateToken(userID, accessTokenExpiration, []byte(os.Getenv("JWT_ACCESS_TOKEN_SECRET")))
 	if err != nil {
 		return "", "", fmt.Errorf("failed to generate access token: %w", err)
 	}
 
-	refreshToken, err := GenerateToken(userID, refreshTokenExpiration, []byte(cfg.JwtRefreshTokenSecret))
+	refreshToken, err := GenerateToken(userID, refreshTokenExpiration, []byte(os.Getenv("JWT_REFRESH_TOKEN_SECRET")))
 	if err != nil {
 		return "", "", fmt.Errorf("failed to generate refresh token: %w", err)
 	}
@@ -68,20 +65,8 @@ func SetRefreshTokenCookie(w http.ResponseWriter, refreshToken string, expRefres
 	})
 }
 
-func RemoveRefreshTokenCookie(w http.ResponseWriter, r *http.Request) {
+func RemoveRefreshTokenCookie(w http.ResponseWriter) {
 	secure := os.Getenv("APP_ENV") == "production"
-
-	cookie, err := r.Cookie("refresh_token")
-	if err != nil {
-		http.Error(w, "error retrieving refresh token cookie", http.StatusUnauthorized)
-		return
-	}
-
-	err = repositories.RemoveRefreshTokenFromDB(r.Context(), cookie.Value)
-	if err != nil {
-		http.Error(w, "error removing refresh token from database", http.StatusInternalServerError)
-		return
-	}
 
 	http.SetCookie(w, &http.Cookie{
 		Name:     "refresh_token",
