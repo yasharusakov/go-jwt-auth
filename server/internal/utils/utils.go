@@ -2,12 +2,10 @@ package utils
 
 import (
 	"fmt"
+	"github.com/golang-jwt/jwt/v5"
 	"net/http"
 	"os"
-	"server/internal/config"
 	"time"
-
-	"github.com/golang-jwt/jwt/v5"
 )
 
 func GenerateToken(userID int, ttl time.Duration, secret []byte) (string, error) {
@@ -20,16 +18,15 @@ func GenerateToken(userID int, ttl time.Duration, secret []byte) (string, error)
 }
 
 func GenerateTokens(userID int) (string, string, error) {
-	cfg := config.LoadConfig().JWT
-	accessTokenExpiration, err := time.ParseDuration(cfg.JwtAccessTokenExpiration)
-	refreshTokenExpiration, err := time.ParseDuration(cfg.JwtRefreshTokenExpiration)
+	accessTokenExpiration, err := time.ParseDuration(os.Getenv("JWT_ACCESS_TOKEN_EXPIRATION"))
+	refreshTokenExpiration, err := time.ParseDuration(os.Getenv("JWT_REFRESH_TOKEN_EXPIRATION"))
 
-	accessToken, err := GenerateToken(userID, accessTokenExpiration, []byte(cfg.JwtAccessTokenSecret))
+	accessToken, err := GenerateToken(userID, accessTokenExpiration, []byte(os.Getenv("JWT_ACCESS_TOKEN_SECRET")))
 	if err != nil {
 		return "", "", fmt.Errorf("failed to generate access token: %w", err)
 	}
 
-	refreshToken, err := GenerateToken(userID, refreshTokenExpiration, []byte(cfg.JwtRefreshTokenSecret))
+	refreshToken, err := GenerateToken(userID, refreshTokenExpiration, []byte(os.Getenv("JWT_REFRESH_TOKEN_SECRET")))
 	if err != nil {
 		return "", "", fmt.Errorf("failed to generate refresh token: %w", err)
 	}

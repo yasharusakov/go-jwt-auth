@@ -2,14 +2,12 @@ package middleware
 
 import (
 	"net/http"
-	"server/internal/config"
+	"os"
 )
 
 func CORSMiddleware(next http.HandlerFunc) http.HandlerFunc {
-	cfg := config.LoadConfig()
-
 	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", cfg.ClientUrl)
+		w.Header().Set("Access-Control-Allow-Origin", os.Getenv("CLIENT_URL"))
 		w.Header().Set("Access-Control-Allow-Credentials", "true")
 		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")

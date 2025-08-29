@@ -5,10 +5,18 @@ import (
 	"fmt"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"log"
-	"server/internal/config"
 )
 
-func NewPostgres(ctx context.Context, cfg config.PostgresConfig) (*pgxpool.Pool, error) {
+type PostgresConfig struct {
+	PostgresUser     string
+	PostgresPassword string
+	PostgresHost     string
+	PostgresPort     string
+	PostgresDB       string
+	PostgresSSLMode  string
+}
+
+func NewPostgres(ctx context.Context, cfg PostgresConfig) (*pgxpool.Pool, error) {
 	postgresUri := fmt.Sprintf(
 		"postgres://%s:%s@%s:%s/%s?sslmode=%s",
 		cfg.PostgresUser,

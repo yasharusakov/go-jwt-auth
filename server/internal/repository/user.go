@@ -73,11 +73,13 @@ func (r *userRepository) GetAllUsers(ctx context.Context) ([]model.User, error) 
 	var users []model.User
 	for rows.Next() {
 		var user model.User
-		err = rows.Scan(&user.ID, &user.Email)
-		if err != nil {
+		if err = rows.Scan(&user.ID, &user.Email); err != nil {
 			return nil, fmt.Errorf("error scanning row: %w", err)
 		}
 		users = append(users, user)
+	}
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("row iteration error: %w", err)
 	}
 	return users, nil
 }

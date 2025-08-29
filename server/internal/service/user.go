@@ -19,5 +19,5 @@ func NewUserService(repo repository.UserRepository) UserService {
 }
 
 func (s *userService) GetAllUsers(ctx context.Context) ([]model.User, error) {
-	return s.GetAllUsers(ctx)
+	return s.repo.GetAllUsers(ctx)
 }
