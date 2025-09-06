@@ -2,10 +2,11 @@ package utils
 
 import (
 	"fmt"
-	"github.com/golang-jwt/jwt/v5"
 	"net/http"
-	"os"
+	"server/internal/config"
 	"time"
+
+	"github.com/golang-jwt/jwt/v5"
 )
 
 func GenerateToken(userID int, ttl time.Duration, secret []byte) (string, error) {
@@ -18,15 +19,14 @@ func GenerateToken(userID int, ttl time.Duration, secret []byte) (string, error)
 }
 
 func GenerateTokens(userID int) (string, string, error) {
-	accessTokenExpiration, err := time.ParseDuration(os.Getenv("JWT_ACCESS_TOKEN_EXPIRATION"))
-	refreshTokenExpiration, err := time.ParseDuration(os.Getenv("JWT_REFRESH_TOKEN_EXPIRATION"))
+	jwtCfg := config.LoadConfig().JWT
 
-	accessToken, err := GenerateToken(userID, accessTokenExpiration, []byte(os.Getenv("JWT_ACCESS_TOKEN_SECRET")))
+	accessToken, err := GenerateToken(userID, jwtCfg.JWTAccessTokenExp, []byte(jwtCfg.JWTAccessTokenSecret))
 	if err != nil {
 		return "", "", fmt.Errorf("failed to generate access token: %w", err)
 	}
 
-	refreshToken, err := GenerateToken(userID, refreshTokenExpiration, []byte(os.Getenv("JWT_REFRESH_TOKEN_SECRET")))
+	refreshToken, err := GenerateToken(userID, jwtCfg.JWTRefreshTokenExp, []byte(jwtCfg.JWTRefreshTokenSecret))
 	if err != nil {
 		return "", "", fmt.Errorf("failed to generate refresh token: %w", err)
 	}
@@ -51,13 +51,14 @@ func ValidateToken(tokenStr string, secret []byte) (*jwt.RegisteredClaims, error
 	return claims, nil
 }
 
-func SetRefreshTokenCookie(w http.ResponseWriter, refreshToken string, expRefresh time.Duration) {
-	secure := os.Getenv("APP_ENV") == "production"
+func SetRefreshTokenCookie(w http.ResponseWriter, refreshToken string) {
+	cfg := config.LoadConfig()
+	secure := cfg.Server.AppEnv == "production"
 
 	http.SetCookie(w, &http.Cookie{
 		Name:     "refresh_token",
 		Value:    refreshToken,
-		Expires:  time.Now().Add(expRefresh),
+		Expires:  time.Now().Add(cfg.JWT.JWTRefreshTokenExp),
 		HttpOnly: true,
 		Path:     "/",
 		Secure:   secure,
@@ -66,7 +67,8 @@ func SetRefreshTokenCookie(w http.ResponseWriter, refreshToken string, expRefres
 }
 
 func RemoveRefreshTokenCookie(w http.ResponseWriter) {
-	secure := os.Getenv("APP_ENV") == "production"
+	appEnv := config.LoadConfig().Server.AppEnv
+	secure := appEnv == "production"
 
 	http.SetCookie(w, &http.Cookie{
 		Name:     "refresh_token",

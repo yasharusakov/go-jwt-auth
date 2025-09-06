@@ -65,22 +65,15 @@ func (h *authHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// parse refresh token expiration
-	expRefresh, err := time.ParseDuration(os.Getenv("JWT_REFRESH_TOKEN_EXPIRATION"))
-	if err != nil {
-		http.Error(w, "error parsing refresh token expiration", http.StatusInternalServerError)
-		return
-	}
-
-	// save refresh token to database
-	err = h.service.SaveRefreshToken(r.Context(), userData.ID, refreshToken, expRefresh)
+	// save refresh token to storage
+	err = h.service.SaveRefreshToken(r.Context(), userData.ID, refreshToken)
 	if err != nil {
 		http.Error(w, "error saving refresh token", http.StatusInternalServerError)
 		return
 	}
 
 	// set refresh_token in httponly cookie
-	utils.SetRefreshTokenCookie(w, refreshToken, expRefresh)
+	utils.SetRefreshTokenCookie(w, refreshToken)
 
 	// return the new access token and user data
 	w.Header().Set("Content-Type", "application/json")
@@ -185,7 +178,7 @@ func (h *authHandler) Register(w http.ResponseWriter, r *http.Request) {
 	// check if user with the given email already exists
 	exists, err := h.service.CheckUserExistsByEmail(r.Context(), RequestBody.Email)
 	if err != nil {
-		http.Error(w, "database error", http.StatusInternalServerError)
+		http.Error(w, "storage error", http.StatusInternalServerError)
 		return
 	}
 	if exists {
@@ -214,22 +207,15 @@ func (h *authHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// save refresh token to database
-	expRefresh, err := time.ParseDuration(os.Getenv("JWT_REFRESH_TOKEN_EXPIRATION"))
-	if err != nil {
-		http.Error(w, "error parsing refresh token expiration", http.StatusInternalServerError)
-		return
-	}
-
-	// save refresh token in the database
-	err = h.service.SaveRefreshToken(r.Context(), userId, refreshToken, expRefresh)
+	// save refresh token in the storage
+	err = h.service.SaveRefreshToken(r.Context(), userId, refreshToken)
 	if err != nil {
 		http.Error(w, "error saving refresh token", http.StatusInternalServerError)
 		return
 	}
 
 	// set refresh_token in httponly cookie
-	utils.SetRefreshTokenCookie(w, refreshToken, expRefresh)
+	utils.SetRefreshTokenCookie(w, refreshToken)
 
 	// get user by id
 	userData, err := h.service.GetUserByID(r.Context(), userId)
