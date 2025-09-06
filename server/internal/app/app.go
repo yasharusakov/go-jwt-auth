@@ -3,29 +3,25 @@ package app
 import (
 	"context"
 	"log"
-	"net/http"
-	"os"
 	"os/signal"
-	"server/internal/database"
+	"server/internal/config"
 	"server/internal/handler"
 	"server/internal/repository"
-	"server/internal/routes"
+	"server/internal/router"
+	"server/internal/server"
 	"server/internal/service"
+	"server/internal/storage"
 	"syscall"
 	"time"
 )
 
 func Run() {
-	ctx := context.Background()
+	cfg := config.LoadConfig()
 
-	postgres, err := database.NewPostgres(ctx, database.PostgresConfig{
-		PostgresUser:     os.Getenv("POSTGRES_USER"),
-		PostgresPassword: os.Getenv("POSTGRES_PASSWORD"),
-		PostgresHost:     os.Getenv("POSTGRES_HOST"),
-		PostgresPort:     os.Getenv("POSTGRES_PORT"),
-		PostgresDB:       os.Getenv("POSTGRES_DB"),
-		PostgresSSLMode:  os.Getenv("POSTGRES_SSL_MODE"),
-	})
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	postgres, err := storage.NewPostgres(ctx, cfg.Postgres)
 	if err != nil {
 		log.Fatal("Error occurred while initializing postgres: ", err)
 	}
@@ -37,48 +33,26 @@ func Run() {
 	repositories := repository.NewRepositories(postgres)
 	services := service.NewServices(repositories)
 	handlers := handler.NewHandlers(services)
+	r := router.SetupRoutes(handlers)
 
-	router := routes.SetupRoutes(handlers)
-
-	server := &Server{}
-	apiPort := os.Getenv("API_PORT")
+	srv := &server.Server{}
 	go func() {
-		if err = server.Run(apiPort, router); err != nil {
+		if err = srv.Run(cfg.Server.Port, r); err != nil {
 			log.Fatal("Error occurred while starting server: ", err.Error())
 		}
 	}()
 
-	log.Println("Server is running on port: " + apiPort)
+	log.Println("Server is running on port: " + cfg.Server.Port)
 
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGTERM, syscall.SIGINT)
-	<-quit
+	<-ctx.Done()
+	log.Println("Shutdown signal received")
 
-	log.Println("Server is shutting down...")
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
-	if err = server.Shutdown(ctx); err != nil {
-		log.Fatal("Error occurred on server shutting down: ", err.Error())
+	if err = srv.Shutdown(shutdownCtx); err != nil {
+		log.Printf("Server shutdown error: %v", err)
+	} else {
+		log.Println("Server shutdown gracefully")
 	}
-
-	log.Println("Server has been shut down.")
-}
-
-type Server struct {
-	httpServer *http.Server
-}
-
-func (s *Server) Run(port string, handler http.Handler) error {
-	s.httpServer = &http.Server{
-		Addr:           ":" + port,
-		Handler:        handler,
-		MaxHeaderBytes: 1 << 20,
-		ReadTimeout:    10 * time.Second,
-		WriteTimeout:   10 * time.Second,
-	}
-
-	return s.httpServer.ListenAndServe()
-}
-
-func (s *Server) Shutdown(ctx context.Context) error {
-	return s.httpServer.Shutdown(ctx)
 }

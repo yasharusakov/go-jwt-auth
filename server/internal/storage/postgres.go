@@ -1,22 +1,14 @@
-package database
+package storage
 
 import (
 	"context"
 	"fmt"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"log"
+	"server/internal/config"
 )
 
-type PostgresConfig struct {
-	PostgresUser     string
-	PostgresPassword string
-	PostgresHost     string
-	PostgresPort     string
-	PostgresDB       string
-	PostgresSSLMode  string
-}
-
-func NewPostgres(ctx context.Context, cfg PostgresConfig) (*pgxpool.Pool, error) {
+func NewPostgres(ctx context.Context, cfg config.PostgresConfig) (*pgxpool.Pool, error) {
 	postgresUri := fmt.Sprintf(
 		"postgres://%s:%s@%s:%s/%s?sslmode=%s",
 		cfg.PostgresUser,
@@ -34,7 +26,7 @@ func NewPostgres(ctx context.Context, cfg PostgresConfig) (*pgxpool.Pool, error)
 
 	err = pool.Ping(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to ping database: %w", err)
+		return nil, fmt.Errorf("failed to ping storage: %w", err)
 	}
 
 	err = createTables(ctx, pool)

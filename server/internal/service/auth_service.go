@@ -4,7 +4,6 @@ import (
 	"context"
 	"server/internal/model"
 	"server/internal/repository"
-	"time"
 )
 
 type AuthService interface {
@@ -12,7 +11,7 @@ type AuthService interface {
 	GetUserByID(ctx context.Context, id int) (*model.User, error)
 	CheckUserExistsByEmail(ctx context.Context, email string) (bool, error)
 	RegisterUser(ctx context.Context, email string, hashedPassword []byte) (int, error)
-	SaveRefreshToken(ctx context.Context, userID int, token string, exp time.Duration) error
+	SaveRefreshToken(ctx context.Context, userID int, token string) error
 	RemoveRefreshToken(ctx context.Context, refreshToken string) error
 }
 
@@ -44,8 +43,8 @@ func (s *authService) RegisterUser(ctx context.Context, email string, hashedPass
 	return s.userRepo.RegisterUser(ctx, email, hashedPassword)
 }
 
-func (s *authService) SaveRefreshToken(ctx context.Context, userID int, token string, exp time.Duration) error {
-	return s.tokenRepo.SaveRefreshToken(ctx, userID, token, exp)
+func (s *authService) SaveRefreshToken(ctx context.Context, userID int, token string) error {
+	return s.tokenRepo.SaveRefreshToken(ctx, userID, token)
 }
 
 func (s *authService) RemoveRefreshToken(ctx context.Context, refreshToken string) error {
