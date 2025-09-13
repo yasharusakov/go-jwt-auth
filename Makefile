@@ -1,10 +1,16 @@
-.PHONY: server client docker-run
+.PHONY: api-gateway auth-service user-service client docker-run
 
-server:
-	cd server && go run cmd/app/main.go
+api-gateway:
+	cd backend/api-gateway && go run cmd/main.go
+
+api-service:
+	cd backend/auth-service && go run cmd/main.go
+
+user-service:
+	cd backend/user-service && go run cmd/main.go
 
 client:
-	cd client && npm run dev
+	cd frontend/client && npm run dev
 
 docker-run:
 	docker-compose up --build
