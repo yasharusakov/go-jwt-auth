@@ -2,15 +2,10 @@ package client
 
 import (
 	"auth-service/internal/model"
-	"bytes"
 	"context"
-	"encoding/base64"
 	"encoding/json"
-	"fmt"
-	"io"
-	"log"
-	"net/http"
-	"time"
+
+	"github.com/nats-io/nats.go"
 )
 
 type UserService interface {
@@ -21,66 +16,41 @@ type UserService interface {
 }
 
 type UserClient struct {
-	BaseURL    string
-	HTTPClient *http.Client
+	nc *nats.Conn
 }
 
-func NewUserClient(baseURL string) UserService {
-	return &UserClient{
-		BaseURL: baseURL,
-		HTTPClient: &http.Client{
-			Timeout: 5 * time.Second,
-		},
-	}
+func NewUserClient(nc *nats.Conn) UserService {
+	return &UserClient{nc}
 }
 
 func (u *UserClient) GetUserByEmail(ctx context.Context, email string) (*model.User, error) {
-	url := u.BaseURL + "/user/get-by-email/" + email
+	subject := "user.getByEmail"
+	data, _ := json.Marshal(map[string]string{"email": email})
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	msg, err := u.nc.RequestWithContext(ctx, subject, data)
 	if err != nil {
 		return nil, err
-	}
-
-	resp, err := u.HTTPClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("failed to get user by email: status code %d", resp.StatusCode)
 	}
 
 	var user model.User
-	if err = json.NewDecoder(resp.Body).Decode(&user); err != nil {
+	if err := json.Unmarshal(msg.Data, &user); err != nil {
 		return nil, err
 	}
-
-	log.Println(&user)
 
 	return &user, nil
 }
 
 func (u *UserClient) GetUserByID(ctx context.Context, id string) (*model.UserWithoutPassword, error) {
-	url := u.BaseURL + "/user/get-by-id/" + id
+	subject := "user.getById"
+	data, _ := json.Marshal(map[string]string{"id": id})
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	msg, err := u.nc.RequestWithContext(ctx, subject, data)
 	if err != nil {
 		return nil, err
 	}
 
-	resp, err := u.HTTPClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("failed to get user by ID: status code %d", resp.StatusCode)
-	}
 	var user model.UserWithoutPassword
-	if err = json.NewDecoder(resp.Body).Decode(&user); err != nil {
+	if err := json.Unmarshal(msg.Data, &user); err != nil {
 		return nil, err
 	}
 
@@ -88,26 +58,18 @@ func (u *UserClient) GetUserByID(ctx context.Context, id string) (*model.UserWit
 }
 
 func (u *UserClient) CheckUserExistsByEmail(ctx context.Context, email string) (bool, error) {
-	url := u.BaseURL + "/user/check-by-email/" + email
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	subject := "user.checkByEmail"
+	data, _ := json.Marshal(map[string]string{"email": email})
+
+	msg, err := u.nc.RequestWithContext(ctx, subject, data)
 	if err != nil {
 		return false, err
-	}
-
-	resp, err := u.HTTPClient.Do(req)
-	if err != nil {
-		return false, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return false, fmt.Errorf("failed to check user existence by email: status code %d", resp.StatusCode)
 	}
 
 	var result struct {
 		Exists bool `json:"exists"`
 	}
-	if err = json.NewDecoder(resp.Body).Decode(&result); err != nil {
+	if err = json.Unmarshal(msg.Data, &result); err != nil {
 		return false, err
 	}
 
@@ -115,38 +77,22 @@ func (u *UserClient) CheckUserExistsByEmail(ctx context.Context, email string) (
 }
 
 func (u *UserClient) RegisterUser(ctx context.Context, email string, hashedPassword []byte) (string, error) {
-	url := u.BaseURL + "/user/register"
-
+	subject := "user.register"
 	payload := map[string]interface{}{
 		"email":    email,
-		"password": base64.StdEncoding.EncodeToString(hashedPassword), // опционально
+		"password": hashedPassword,
 	}
-	payloadBytes, err := json.Marshal(payload)
-	if err != nil {
-		return "", err
-	}
-	
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(payloadBytes))
-	if err != nil {
-		return "", err
-	}
-	req.Header.Set("Content-Type", "application/json")
+	data, _ := json.Marshal(payload)
 
-	resp, err := u.HTTPClient.Do(req)
+	msg, err := u.nc.RequestWithContext(ctx, subject, data)
 	if err != nil {
 		return "", err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusCreated {
-		bodyBytes, _ := io.ReadAll(resp.Body)
-		return "", fmt.Errorf("failed to register user: status code %d, body: %s", resp.StatusCode, string(bodyBytes))
 	}
 
 	var result struct {
 		ID string `json:"id"`
 	}
-	if err = json.NewDecoder(resp.Body).Decode(&result); err != nil {
+	if err = json.Unmarshal(msg.Data, &result); err != nil {
 		return "", err
 	}
 

@@ -14,9 +14,17 @@ type PostgresConfig struct {
 	PostgresSSLMode  string
 }
 
+type NATSConfig struct {
+	NatsUser     string
+	NatsPassword string
+	NatsHost     string
+	NatsPort     string
+}
+
 type Config struct {
 	Port     string
 	Postgres PostgresConfig
+	NATS     NATSConfig
 }
 
 var (
@@ -28,6 +36,12 @@ func GetConfig() *Config {
 	once.Do(func() {
 		cfg = &Config{
 			Port: os.Getenv("API_USER_SERVICE_PORT"),
+			NATS: NATSConfig{
+				NatsUser:     os.Getenv("NATS_USER"),
+				NatsPassword: os.Getenv("NATS_PASSWORD"),
+				NatsHost:     os.Getenv("NATS_HOST"),
+				NatsPort:     os.Getenv("NATS_PORT"),
+			},
 			Postgres: PostgresConfig{
 				PostgresUser:     os.Getenv("DB_USER_POSTGRES_USER"),
 				PostgresPassword: os.Getenv("DB_USER_POSTGRES_PASSWORD"),

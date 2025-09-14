@@ -6,8 +6,10 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+	"user-service/internal/broker"
 	"user-service/internal/config"
 	"user-service/internal/handler"
+	"user-service/internal/handler/nats"
 	"user-service/internal/repository"
 	"user-service/internal/router"
 	"user-service/internal/server"
@@ -20,6 +22,20 @@ func Run() {
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
+
+	// ========== NATS CONNECTION ==========
+	nc, err := broker.NewNATS(&cfg.NATS, "user-service")
+	if err != nil {
+		log.Fatal("Error occurred while connecting to NATS: ", err)
+	}
+
+	defer func() {
+		log.Println("Draining NATS connection...")
+		if drainErr := nc.Drain(); drainErr != nil {
+			log.Printf("Error draining NATS connection: %v", err)
+		}
+	}()
+	// ========== NATS END OF CONNECTION ==========
 
 	srv := &server.Server{}
 
@@ -36,6 +52,12 @@ func Run() {
 	services := service.NewServices(repositories)
 	handlers := handler.NewHandlers(services)
 	routes := router.RegisterRoutes(handlers)
+
+	// ========== NATS HANDLERS ==========
+	natsHandler := nats.NewNATSHandler(services.User, nc)
+	natsHandler.Register()
+	log.Println("NATS handlers registered")
+	// ========== END NATS HANDLERS ==========
 
 	errChan := make(chan error, 1)
 

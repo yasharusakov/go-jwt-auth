@@ -23,10 +23,18 @@ type JWTConfig struct {
 	JWTRefreshTokenExp    time.Duration
 }
 
+type NATSConfig struct {
+	NatsUser     string
+	NatsPassword string
+	NatsHost     string
+	NatsPort     string
+}
+
 type Config struct {
 	AppEnv            string
 	Port              string
 	ApiUserServiceURL string
+	NATS              NATSConfig
 	Postgres          PostgresConfig
 	JWT               JWTConfig
 }
@@ -52,6 +60,12 @@ func GetConfig() *Config {
 			AppEnv:            os.Getenv("APP_ENV"),
 			Port:              os.Getenv("API_AUTH_SERVICE_PORT"),
 			ApiUserServiceURL: os.Getenv("API_USER_SERVICE_URL"),
+			NATS: NATSConfig{
+				NatsUser:     os.Getenv("NATS_USER"),
+				NatsPassword: os.Getenv("NATS_PASSWORD"),
+				NatsHost:     os.Getenv("NATS_HOST"),
+				NatsPort:     os.Getenv("NATS_PORT"),
+			},
 			Postgres: PostgresConfig{
 				PostgresUser:     os.Getenv("DB_AUTH_POSTGRES_USER"),
 				PostgresPassword: os.Getenv("DB_AUTH_POSTGRES_PASSWORD"),
