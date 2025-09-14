@@ -1,6 +1,7 @@
 package app
 
 import (
+	"auth-service/internal/broker"
 	"auth-service/internal/client"
 	"auth-service/internal/config"
 	"auth-service/internal/handler"
@@ -22,6 +23,20 @@ func Run() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
+	// ========== NATS CONNECTION ==========
+	nc, err := broker.NewNATS(&cfg.NATS, "user-service")
+	if err != nil {
+		log.Fatal("Error occurred while connecting to NATS: ", err)
+	}
+
+	defer func() {
+		log.Println("Draining NATS connection...")
+		if drainErr := nc.Drain(); drainErr != nil {
+			log.Printf("Error draining NATS connection: %v", err)
+		}
+	}()
+	// ========== NATS END OF CONNECTION ==========
+
 	srv := &server.Server{}
 
 	postgres, err := storage.NewPostgres(ctx, cfg.Postgres)
@@ -34,7 +49,7 @@ func Run() {
 	}()
 
 	repositories := repository.NewRepositories(postgres)
-	userClient := client.NewUserClient(cfg.ApiUserServiceURL)
+	userClient := client.NewUserClient(nc)
 	services := service.NewServices(userClient, repositories)
 	handlers := handler.NewHandlers(services)
 	routes := router.RegisterRoutes(handlers)
