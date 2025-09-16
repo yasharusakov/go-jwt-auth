@@ -2,7 +2,7 @@ package middleware
 
 import (
 	"api-gateway/internal/config"
-	"api-gateway/internal/utils"
+	"api-gateway/internal/util"
 	"net/http"
 	"strings"
 )
@@ -19,7 +19,7 @@ func AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 
 		tokenStr := strings.TrimPrefix(authHeader, "Bearer ")
 
-		_, err := utils.ValidateToken(tokenStr, []byte(accessSecret))
+		_, err := util.ValidateToken(tokenStr, []byte(accessSecret))
 		if err != nil {
 			http.Error(w, "invalid or expired token", http.StatusUnauthorized)
 			return

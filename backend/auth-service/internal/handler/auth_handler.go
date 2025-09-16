@@ -3,7 +3,7 @@ package handler
 import (
 	"auth-service/internal/model"
 	"auth-service/internal/service"
-	"auth-service/internal/utils"
+	"auth-service/internal/util"
 	"encoding/json"
 	"net/http"
 	"os"
@@ -68,7 +68,7 @@ func (h *authHandler) Register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// generate tokens
-	accessToken, refreshToken, err := utils.GenerateTokens(userId)
+	accessToken, refreshToken, err := util.GenerateTokens(userId)
 	if err != nil {
 		http.Error(w, "error creating tokens"+err.Error(), http.StatusInternalServerError)
 		return
@@ -82,7 +82,7 @@ func (h *authHandler) Register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// set refresh_token in httponly cookie
-	utils.SetRefreshTokenCookie(w, refreshToken)
+	util.SetRefreshTokenCookie(w, refreshToken)
 
 	// get user by id
 	userData, err := h.service.GetUserByID(r.Context(), userId)
@@ -132,7 +132,7 @@ func (h *authHandler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// generate access and refresh tokens
-	accessToken, refreshToken, err := utils.GenerateTokens(userData.ID)
+	accessToken, refreshToken, err := util.GenerateTokens(userData.ID)
 	if err != nil {
 		http.Error(w, "error creating tokens", http.StatusInternalServerError)
 		return
@@ -146,7 +146,7 @@ func (h *authHandler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// set refresh_token in httponly cookie
-	utils.SetRefreshTokenCookie(w, refreshToken)
+	util.SetRefreshTokenCookie(w, refreshToken)
 
 	// return the new access token and user data
 	w.Header().Set("Content-Type", "application/json")
@@ -182,7 +182,7 @@ func (h *authHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// validate the refresh token
-	claims, err := utils.ValidateToken(cookie.Value, []byte(refreshSecret))
+	claims, err := util.ValidateToken(cookie.Value, []byte(refreshSecret))
 	if err != nil {
 		http.Error(w, "invalid or expired refresh token", http.StatusUnauthorized)
 		return
@@ -192,7 +192,7 @@ func (h *authHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 	userID := claims.Subject
 
 	// generate new access token
-	newAccessToken, err := utils.GenerateToken(userID, jwtAccessTokenExp, []byte(accessSecret))
+	newAccessToken, err := util.GenerateToken(userID, jwtAccessTokenExp, []byte(accessSecret))
 	if err != nil {
 		http.Error(w, "error generating new access token", http.StatusInternalServerError)
 		return
@@ -224,6 +224,6 @@ func (h *authHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	if err == nil {
 		_ = h.service.RemoveRefreshToken(r.Context(), cookie.Value)
 	}
-	utils.RemoveRefreshTokenCookie(w)
+	util.RemoveRefreshTokenCookie(w)
 	w.WriteHeader(http.StatusOK)
 }

@@ -1,7 +1,6 @@
 package app
 
 import (
-	"auth-service/internal/broker"
 	"auth-service/internal/client"
 	"auth-service/internal/config"
 	"auth-service/internal/handler"
@@ -24,17 +23,17 @@ func Run() {
 	defer stop()
 
 	// ========== NATS CONNECTION ==========
-	nc, err := broker.NewNATS(&cfg.NATS, "user-service")
-	if err != nil {
-		log.Fatal("Error occurred while connecting to NATS: ", err)
-	}
-
-	defer func() {
-		log.Println("Draining NATS connection...")
-		if drainErr := nc.Drain(); drainErr != nil {
-			log.Printf("Error draining NATS connection: %v", err)
-		}
-	}()
+	//nc, err := broker.NewNATS(&cfg.NATS, "user-service")
+	//if err != nil {
+	//	log.Fatal("Error occurred while connecting to NATS: ", err)
+	//}
+	//
+	//defer func() {
+	//	log.Println("Draining NATS connection...")
+	//	if drainErr := nc.Drain(); drainErr != nil {
+	//		log.Printf("Error draining NATS connection: %v", err)
+	//	}
+	//}()
 	// ========== NATS END OF CONNECTION ==========
 
 	srv := &server.Server{}
@@ -49,7 +48,11 @@ func Run() {
 	}()
 
 	repositories := repository.NewRepositories(postgres)
-	userClient := client.NewUserClient(nc)
+
+	// nats version
+	//userClient := client.NewUserClient(nc)
+
+	userClient := client.NewUserClient(cfg.ApiUserServiceURL)
 	services := service.NewServices(userClient, repositories)
 	handlers := handler.NewHandlers(services)
 	routes := router.RegisterRoutes(handlers)
