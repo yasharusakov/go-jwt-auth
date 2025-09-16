@@ -17,7 +17,7 @@ func Run() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	srv := &server.Server{}
+	srv := &server.HttpServer{}
 
 	handlers := router.RegisterRoutes()
 

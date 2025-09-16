@@ -35,7 +35,7 @@ func Run() {
 	//}()
 	// ========== NATS END OF CONNECTION ==========
 
-	srv := &server.Server{}
+	srv := &server.HttpServer{}
 
 	postgres, err := storage.NewPostgres(ctx, cfg.Postgres)
 	if err != nil {
