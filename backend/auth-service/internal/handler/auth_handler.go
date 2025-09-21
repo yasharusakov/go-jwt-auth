@@ -48,7 +48,7 @@ func (h *authHandler) Register(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "storage error"+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	if exists {
+	if exists.Exists {
 		http.Error(w, "user already exists", http.StatusBadRequest)
 		return
 	}
@@ -61,21 +61,21 @@ func (h *authHandler) Register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// registration query
-	userId, err := h.service.RegisterUser(r.Context(), RequestBody.Email, hashedPassword)
+	user, err := h.service.RegisterUser(r.Context(), RequestBody.Email, hashedPassword)
 	if err != nil {
 		http.Error(w, "registration error"+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	// generate tokens
-	accessToken, refreshToken, err := util.GenerateTokens(userId)
+	accessToken, refreshToken, err := util.GenerateTokens(user.Id)
 	if err != nil {
 		http.Error(w, "error creating tokens"+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	// save refresh token in the storage
-	err = h.service.SaveRefreshToken(r.Context(), userId, refreshToken)
+	err = h.service.SaveRefreshToken(r.Context(), user.Id, refreshToken)
 	if err != nil {
 		http.Error(w, "error saving refresh token"+err.Error(), http.StatusInternalServerError)
 		return
@@ -85,7 +85,7 @@ func (h *authHandler) Register(w http.ResponseWriter, r *http.Request) {
 	util.SetRefreshTokenCookie(w, refreshToken)
 
 	// get user by id
-	userData, err := h.service.GetUserByID(r.Context(), userId)
+	userById, err := h.service.GetUserByID(r.Context(), user.Id)
 	if err != nil {
 		http.Error(w, "error retrieving user data", http.StatusInternalServerError)
 		return
@@ -96,8 +96,8 @@ func (h *authHandler) Register(w http.ResponseWriter, r *http.Request) {
 	err = json.NewEncoder(w).Encode(map[string]interface{}{
 		"access_token": accessToken,
 		"user": map[string]interface{}{
-			"id":    userData.ID,
-			"email": userData.Email,
+			"id":    userById.User.Id,
+			"email": userById.User.Email,
 		},
 	})
 	if err != nil {
@@ -125,21 +125,21 @@ func (h *authHandler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// compare the hashed password with the provided password
-	err = bcrypt.CompareHashAndPassword([]byte(userData.Password), []byte(reqBody.Password))
+	err = bcrypt.CompareHashAndPassword([]byte(userData.User.Password), []byte(reqBody.Password))
 	if err != nil {
 		http.Error(w, "invalid email or password", http.StatusUnauthorized)
 		return
 	}
 
 	// generate access and refresh tokens
-	accessToken, refreshToken, err := util.GenerateTokens(userData.ID)
+	accessToken, refreshToken, err := util.GenerateTokens(userData.User.Id)
 	if err != nil {
 		http.Error(w, "error creating tokens", http.StatusInternalServerError)
 		return
 	}
 
 	// save refresh token to storage
-	err = h.service.SaveRefreshToken(r.Context(), userData.ID, refreshToken)
+	err = h.service.SaveRefreshToken(r.Context(), userData.User.Id, refreshToken)
 	if err != nil {
 		http.Error(w, "error saving refresh token", http.StatusInternalServerError)
 		return
@@ -153,8 +153,8 @@ func (h *authHandler) Login(w http.ResponseWriter, r *http.Request) {
 	err = json.NewEncoder(w).Encode(map[string]interface{}{
 		"access_token": accessToken,
 		"user": map[string]interface{}{
-			"id":    userData.ID,
-			"email": userData.Email,
+			"id":    userData.User.Id,
+			"email": userData.User.Email,
 		},
 	})
 	if err != nil {
@@ -209,8 +209,8 @@ func (h *authHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 	err = json.NewEncoder(w).Encode(map[string]interface{}{
 		"access_token": newAccessToken,
 		"user": map[string]interface{}{
-			"id":    userData.ID,
-			"email": userData.Email,
+			"id":    userData.User.Id,
+			"email": userData.User.Email,
 		},
 	})
 	if err != nil {

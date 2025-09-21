@@ -31,12 +31,14 @@ type NATSConfig struct {
 }
 
 type Config struct {
-	AppEnv            string
-	Port              string
-	ApiUserServiceURL string
-	NATS              NATSConfig
-	Postgres          PostgresConfig
-	JWT               JWTConfig
+	AppEnv              string
+	Port                string
+	ApiUserServiceURL   string
+	GRPCUserServicePort string
+	GRPCUserServiceURL  string
+	NATS                NATSConfig
+	Postgres            PostgresConfig
+	JWT                 JWTConfig
 }
 
 var (
@@ -57,9 +59,11 @@ func GetConfig() *Config {
 		}
 
 		cfg = &Config{
-			AppEnv:            os.Getenv("APP_ENV"),
-			Port:              os.Getenv("API_AUTH_SERVICE_PORT"),
-			ApiUserServiceURL: os.Getenv("API_USER_SERVICE_URL"),
+			AppEnv:              os.Getenv("APP_ENV"),
+			Port:                os.Getenv("API_AUTH_SERVICE_PORT"),
+			ApiUserServiceURL:   os.Getenv("API_USER_SERVICE_URL"),
+			GRPCUserServicePort: os.Getenv("GRPC_USER_SERVICE_PORT"),
+			GRPCUserServiceURL:  os.Getenv("GRPC_USER_SERVICE_URL"),
 			NATS: NATSConfig{
 				NatsUser:     os.Getenv("NATS_USER"),
 				NatsPassword: os.Getenv("NATS_PASSWORD"),

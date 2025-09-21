@@ -1,4 +1,4 @@
-package http
+package httpHandler
 
 import (
 	"encoding/json"
@@ -8,7 +8,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
-type UserHandler interface {
+type Handlers interface {
 	GetAllUsers(w http.ResponseWriter, r *http.Request)
 	GetUserByEmail(w http.ResponseWriter, r *http.Request)
 	GetUserByID(w http.ResponseWriter, r *http.Request)
@@ -20,7 +20,7 @@ type userHandler struct {
 	service service.UserService
 }
 
-func NewUserHandler(service service.UserService) UserHandler {
+func NewUserHandler(service service.UserService) Handlers {
 	return &userHandler{service: service}
 }
 

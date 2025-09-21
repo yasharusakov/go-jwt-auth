@@ -5,11 +5,9 @@ import (
 	"log"
 	"os/signal"
 	"syscall"
-	"time"
 	"user-service/internal/config"
-	"user-service/internal/handler"
+	grpcHandler "user-service/internal/handler/grpc"
 	"user-service/internal/repository"
-	"user-service/internal/router"
 	"user-service/internal/server"
 	"user-service/internal/service"
 	"user-service/internal/storage"
@@ -35,7 +33,8 @@ func Run() {
 	//}()
 	// ========== NATS END OF CONNECTION ==========
 
-	srv := &server.HttpServer{}
+	//httpServer := &server.HttpServer{}
+	grpcServer := &server.GRPCServer{}
 
 	postgres, err := storage.NewPostgres(ctx, cfg.Postgres)
 	if err != nil {
@@ -46,10 +45,14 @@ func Run() {
 		postgres.Close()
 	}()
 
-	repositories := repository.NewRepositories(postgres)
-	services := service.NewServices(repositories)
-	handlers := handler.NewHandlers(services)
-	routes := router.RegisterRoutes(handlers)
+	//repositories := repository.NewUserRepository(postgres)
+	//services := service.NewUserService(repositories)
+	//handlers := httpHandler.NewUserHandler(services)
+	//routes := router.RegisterRoutes(handlers)
+
+	repositories := repository.NewUserRepository(postgres)
+	services := service.NewUserService(repositories)
+	handlers := grpcHandler.NewUserHandler(services)
 
 	// ========== NATS HANDLERS ==========
 	//natsHandler := nats.NewNATSHandler(services.User, nc)
@@ -60,7 +63,8 @@ func Run() {
 	errChan := make(chan error, 1)
 
 	go func() {
-		errChan <- srv.Run(cfg.Port, routes)
+		//errChan <- httpServer.Run(cfg.Port, routes)
+		errChan <- grpcServer.Run(cfg.GRPCUserServicePort, handlers)
 	}()
 
 	log.Printf("Server is running on port: %s", cfg.Port)
@@ -74,12 +78,13 @@ func Run() {
 		}
 	}
 
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+	//shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	//defer cancel()
 
-	if err = srv.Shutdown(shutdownCtx); err != nil {
-		log.Printf("Server shutdown error: %v", err)
-	} else {
-		log.Println("Server shutdown gracefully")
-	}
+	//if err = httpServer.Shutdown(shutdownCtx); err != nil {
+	//	log.Printf("Server shutdown error: %v", err)
+	//} else {
+	//	log.Println("Server shutdown gracefully")
+	//}
+	grpcServer.GRPCServer.GracefulStop()
 }
