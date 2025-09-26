@@ -1,7 +1,7 @@
 package app
 
 import (
-	"auth-service/internal/client"
+	grpcClient "auth-service/internal/client/grpc"
 	"auth-service/internal/config"
 	"auth-service/internal/handler"
 	"auth-service/internal/repository"
@@ -23,20 +23,20 @@ func Run() {
 	defer stop()
 
 	// ========== NATS CONNECTION ==========
-	//nc, err := broker.NewNATS(&cfg.NATS, "user-service")
-	//if err != nil {
-	//	log.Fatal("Error occurred while connecting to NATS: ", err)
-	//}
+	// nc, err := broker.NewNATS(&cfg.NATS, "user-service")
+	// if err != nil {
+	//	 log.Fatal("Error occurred while connecting to NATS: ", err)
+	// }
 	//
-	//defer func() {
-	//	log.Println("Draining NATS connection...")
-	//	if drainErr := nc.Drain(); drainErr != nil {
-	//		log.Printf("Error draining NATS connection: %v", err)
-	//	}
-	//}()
+	// defer func() {
+	//	 log.Println("Draining NATS connection...")
+	//	 if drainErr := nc.Drain(); drainErr != nil {
+	//		 log.Printf("Error draining NATS connection: %v", err)
+	//	 }
+	// }()
 	// ========== NATS END OF CONNECTION ==========
 
-	srv := &server.HttpServer{}
+	httpServer := &server.HttpServer{}
 
 	postgres, err := storage.NewPostgres(ctx, cfg.Postgres)
 	if err != nil {
@@ -47,20 +47,30 @@ func Run() {
 		postgres.Close()
 	}()
 
-	repositories := repository.NewRepositories(postgres)
+	repositories := repository.NewTokenRepository(postgres)
+
+	// ---- connect gRPC client ----
+	grpcUserClient, err := grpcClient.NewGRPCUserClient(cfg.GRPCUserServiceURL)
+	if err != nil {
+		log.Fatal("Error creating gRPC user client: ", err)
+	}
+	defer grpcUserClient.Close()
+	// -------------------------------------
 
 	// nats version
-	//userClient := client.NewUserClient(nc)
+	// userClient := client.NewUserClient(nc)
 
-	userClient := client.NewUserClient(cfg.ApiUserServiceURL)
-	services := service.NewServices(userClient, repositories)
-	handlers := handler.NewHandlers(services)
+	// http version
+	// httpUserClient := httpClient.NewHTTPUserClient(cfg.ApiUserServiceURL)
+	// services := service.NewAuthService(httpUserClient, repositories)
+	services := service.NewAuthService(grpcUserClient, repositories)
+	handlers := handler.NewAuthHandler(services)
 	routes := router.RegisterRoutes(handlers)
 
 	errChan := make(chan error, 1)
 
 	go func() {
-		errChan <- srv.Run(cfg.Port, routes)
+		errChan <- httpServer.Run(cfg.Port, routes)
 	}()
 
 	log.Printf("Server is running on port: %s", cfg.Port)
@@ -77,7 +87,7 @@ func Run() {
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	if err = srv.Shutdown(shutdownCtx); err != nil {
+	if err = httpServer.Shutdown(shutdownCtx); err != nil {
 		log.Printf("Server shutdown error: %v", err)
 	} else {
 		log.Println("Server shutdown gracefully")

@@ -22,9 +22,10 @@ type NATSConfig struct {
 }
 
 type Config struct {
-	Port     string
-	Postgres PostgresConfig
-	NATS     NATSConfig
+	Port                string
+	GRPCUserServicePort string
+	Postgres            PostgresConfig
+	NATS                NATSConfig
 }
 
 var (
@@ -35,7 +36,8 @@ var (
 func GetConfig() *Config {
 	once.Do(func() {
 		cfg = &Config{
-			Port: os.Getenv("API_USER_SERVICE_PORT"),
+			Port:                os.Getenv("API_USER_SERVICE_PORT"),
+			GRPCUserServicePort: os.Getenv("GRPC_USER_SERVICE_PORT"),
 			NATS: NATSConfig{
 				NatsUser:     os.Getenv("NATS_USER"),
 				NatsPassword: os.Getenv("NATS_PASSWORD"),

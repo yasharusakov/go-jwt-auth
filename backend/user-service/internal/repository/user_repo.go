@@ -21,7 +21,7 @@ type userRepository struct {
 }
 
 func NewUserRepository(db *pgxpool.Pool) UserRepository {
-	return &userRepository{db: db}
+	return &userRepository{db}
 }
 
 func (r *userRepository) GetUserByEmail(ctx context.Context, email string) (*model.User, error) {

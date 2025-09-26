@@ -24,10 +24,9 @@ func Run() {
 	errChan := make(chan error, 1)
 
 	go func() {
+		log.Printf("HTTP server is running on port: %s", cfg.Port)
 		errChan <- srv.Run(cfg.Port, handlers)
 	}()
-
-	log.Printf("Server is running on port: %s", cfg.Port)
 
 	select {
 	case <-ctx.Done():

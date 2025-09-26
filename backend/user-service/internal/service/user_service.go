@@ -19,7 +19,7 @@ type userService struct {
 }
 
 func NewUserService(repo repository.UserRepository) UserService {
-	return &userService{repo: repo}
+	return &userService{repo}
 }
 
 func (s *userService) GetUserByEmail(ctx context.Context, email string) (*model.User, error) {

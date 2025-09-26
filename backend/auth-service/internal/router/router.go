@@ -7,13 +7,13 @@ import (
 	"github.com/gorilla/mux"
 )
 
-func RegisterRoutes(handlers *handler.Handlers) http.Handler {
+func RegisterRoutes(handlers handler.AuthHandler) http.Handler {
 	m := mux.NewRouter()
 
-	m.HandleFunc("/api/auth/register", handlers.Auth.Register).Methods("POST")
-	m.HandleFunc("/api/auth/login", handlers.Auth.Login).Methods("POST")
-	m.HandleFunc("/api/auth/refresh", handlers.Auth.Refresh).Methods("GET")
-	m.HandleFunc("/api/auth/logout", handlers.Auth.Logout).Methods("POST")
+	m.HandleFunc("/api/auth/register", handlers.Register).Methods("POST")
+	m.HandleFunc("/api/auth/login", handlers.Login).Methods("POST")
+	m.HandleFunc("/api/auth/refresh", handlers.Refresh).Methods("GET")
+	m.HandleFunc("/api/auth/logout", handlers.Logout).Methods("POST")
 
 	return m
 }
