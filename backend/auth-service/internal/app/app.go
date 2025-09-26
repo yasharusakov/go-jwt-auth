@@ -23,17 +23,17 @@ func Run() {
 	defer stop()
 
 	// ========== NATS CONNECTION ==========
-	//nc, err := broker.NewNATS(&cfg.NATS, "user-service")
-	//if err != nil {
-	//	log.Fatal("Error occurred while connecting to NATS: ", err)
-	//}
+	// nc, err := broker.NewNATS(&cfg.NATS, "user-service")
+	// if err != nil {
+	//	 log.Fatal("Error occurred while connecting to NATS: ", err)
+	// }
 	//
-	//defer func() {
-	//	log.Println("Draining NATS connection...")
-	//	if drainErr := nc.Drain(); drainErr != nil {
-	//		log.Printf("Error draining NATS connection: %v", err)
-	//	}
-	//}()
+	// defer func() {
+	//	 log.Println("Draining NATS connection...")
+	//	 if drainErr := nc.Drain(); drainErr != nil {
+	//		 log.Printf("Error draining NATS connection: %v", err)
+	//	 }
+	// }()
 	// ========== NATS END OF CONNECTION ==========
 
 	httpServer := &server.HttpServer{}
@@ -57,12 +57,12 @@ func Run() {
 	defer grpcUserClient.Close()
 	// -------------------------------------
 
-	//nats version
-	//userClient := client.NewUserClient(nc)
+	// nats version
+	// userClient := client.NewUserClient(nc)
 
-	//http version
-	//httpUserClient := httpClient.NewHTTPUserClient(cfg.ApiUserServiceURL)
-	//services := service.NewAuthService(httpUserClient, repositories)
+	// http version
+	// httpUserClient := httpClient.NewHTTPUserClient(cfg.ApiUserServiceURL)
+	// services := service.NewAuthService(httpUserClient, repositories)
 	services := service.NewAuthService(grpcUserClient, repositories)
 	handlers := handler.NewAuthHandler(services)
 	routes := router.RegisterRoutes(handlers)
