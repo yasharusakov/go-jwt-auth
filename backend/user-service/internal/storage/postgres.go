@@ -3,7 +3,6 @@ package storage
 import (
 	"context"
 	"fmt"
-	"log"
 	"user-service/internal/config"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -30,28 +29,28 @@ func NewPostgres(ctx context.Context, cfg config.PostgresConfig) (*pgxpool.Pool,
 		return nil, fmt.Errorf("failed to ping storage: %w", err)
 	}
 
-	err = createTables(ctx, pool)
-	if err != nil {
-		return nil, err
-	}
+	//err = createTables(ctx, pool)
+	//if err != nil {
+	//	return nil, err
+	//}
 
 	return pool, nil
 }
 
-func createTables(ctx context.Context, pool *pgxpool.Pool) error {
-	_, err := pool.Exec(ctx, `
-			CREATE TABLE IF NOT EXISTS users (
-			id SERIAL PRIMARY KEY,
-			email TEXT UNIQUE NOT NULL,
-			password TEXT NOT NULL
-		);
-	`)
-
-	if err != nil {
-		return fmt.Errorf("failed to create users table: %w", err)
-	}
-
-	log.Println("Database tables created or already exist.")
-
-	return nil
-}
+//func createTables(ctx context.Context, pool *pgxpool.Pool) error {
+//	_, err := pool.Exec(ctx, `
+//			CREATE TABLE IF NOT EXISTS users (
+//			id SERIAL PRIMARY KEY,
+//			email TEXT UNIQUE NOT NULL,
+//			password TEXT NOT NULL
+//		);
+//	`)
+//
+//	if err != nil {
+//		return fmt.Errorf("failed to create users table: %w", err)
+//	}
+//
+//	log.Println("Database tables created or already exist.")
+//
+//	return nil
+//}

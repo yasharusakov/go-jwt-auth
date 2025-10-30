@@ -1,20 +1,20 @@
 services:
-#  nats:
-#    image: nats:latest
-#    ports:
-#      - "4222:4222"
-#      - "8222:8222"
-#    command: [
-#      "--user", "${NATS_USER}",
-#      "--pass", "${NATS_PASSWORD}",
-#      "-js",
-#      "-m", "8222"
-#    ]
-#    env_file:
-#      - .env
-#    networks:
-#      - app_network
-#    restart: always
+  #  nats:
+  #    image: nats:latest
+  #    ports:
+  #      - "4222:4222"
+  #      - "8222:8222"
+  #    command: [
+  #      "--user", "${NATS_USER}",
+  #      "--pass", "${NATS_PASSWORD}",
+  #      "-js",
+  #      "-m", "8222"
+  #    ]
+  #    env_file:
+  #      - .env
+  #    networks:
+  #      - app_network
+  #    restart: always
 
   postgres-auth:
     image: postgres:alpine
@@ -32,10 +32,29 @@ services:
       - postgres_auth_data:/var/lib/postgresql/data
     restart: always
     healthcheck:
-      test: [ "CMD", "pg_isready", "-U", "${DB_AUTH_POSTGRES_USER}" ]
+      test: [ "CMD", "pg_isready", "-U", "${DB_AUTH_POSTGRES_USER}", "-d", "${DB_AUTH_POSTGRES_DB}" ]
       interval: 2s
       timeout: 2s
       retries: 20
+
+  # run automated migrations for postgres-auth
+  migrator-auth:
+    image: migrate/migrate
+    container_name: migrator-auth
+    env_file:
+      - .env
+    volumes:
+      - ./backend/auth-service/migrations:/migrations
+    command: >
+      -database "postgres://${DB_AUTH_POSTGRES_USER}:${DB_AUTH_POSTGRES_PASSWORD}@postgres-auth:5432/${DB_AUTH_POSTGRES_DB}?sslmode=${DB_AUTH_POSTGRES_SSLMODE}"
+      -path /migrations
+      up
+    depends_on:
+      postgres-auth:
+        condition: service_healthy
+    networks:
+      - app_network
+    restart: on-failure
 
   postgres-user:
     image: postgres:alpine
@@ -53,10 +72,29 @@ services:
       - postgres_user_data:/var/lib/postgresql/data
     restart: always
     healthcheck:
-      test: [ "CMD", "pg_isready", "-U", "${DB_USER_POSTGRES_USER}" ]
+      test: [ "CMD", "pg_isready", "-U", "${DB_USER_POSTGRES_USER}", "-d", "${DB_USER_POSTGRES_DB}" ]
       interval: 2s
       timeout: 2s
       retries: 20
+
+  # run automated migrations for postgres-user
+  migrator-user:
+    image: migrate/migrate
+    container_name: migrator-user
+    env_file:
+      - .env
+    volumes:
+      - ./backend/user-service/migrations:/migrations
+    command: >
+      -database "postgres://${DB_USER_POSTGRES_USER}:${DB_USER_POSTGRES_PASSWORD}@postgres-user:5432/${DB_USER_POSTGRES_DB}?sslmode=${DB_USER_POSTGRES_SSLMODE}"
+      -path /migrations
+      up
+    depends_on:
+      postgres-user:
+        condition: service_healthy
+    networks:
+      - app_network
+    restart: on-failure
 
   api-gateway:
     build:
@@ -68,7 +106,7 @@ services:
     networks:
       - app_network
     depends_on:
-#      - nats
+      #      - nats
       - auth-service
       - user-service
 
@@ -80,10 +118,12 @@ services:
     ports:
       - "${API_AUTH_SERVICE_PORT}:8081"
     depends_on:
-#      nats:
-#        condition: service_started
-      postgres-auth:
-        condition: service_healthy
+      #      nats:
+      #        condition: service_started
+#      postgres-user:
+#        condition: service_healthy
+      migrator-auth:
+        condition: service_completed_successfully
     networks:
       - app_network
     restart: always
@@ -96,10 +136,12 @@ services:
     ports:
       - "${API_USER_SERVICE_PORT}:8082"
     depends_on:
-#      nats:
-#        condition: service_started
-      postgres-user:
-        condition: service_healthy
+      #      nats:
+      #        condition: service_started
+#      postgres-user:
+#        condition: service_healthy
+      migrator-user:
+          condition: service_completed_successfully
     networks:
       - app_network
     restart: always
