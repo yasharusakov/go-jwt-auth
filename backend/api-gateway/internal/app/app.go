@@ -5,7 +5,9 @@ import (
 	"api-gateway/internal/router"
 	"api-gateway/internal/server"
 	"context"
+	"errors"
 	"log"
+	"net/http"
 	"os/signal"
 	"syscall"
 	"time"
@@ -28,13 +30,20 @@ func Run() {
 		errChan <- srv.Run(cfg.Port, handlers)
 	}()
 
+	handleRunErr := func(err error) {
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Printf("Server error: %v", err)
+		} else {
+			log.Println("Stopped cleanly")
+		}
+	}
+
 	select {
 	case <-ctx.Done():
 		log.Println("Shutdown signal received")
 	case err := <-errChan:
-		if err != nil {
-			log.Fatalf("Error occurred while starting server: %v", err)
-		}
+		handleRunErr(err)
+		return
 	}
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -45,4 +54,6 @@ func Run() {
 	} else {
 		log.Println("Server shutdown gracefully")
 	}
+
+	handleRunErr(<-errChan)
 }
