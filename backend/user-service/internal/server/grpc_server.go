@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"net"
 	userpb "user-service/internal/genproto/user"
 	grpcHandler "user-service/internal/handler/grpc"
@@ -13,12 +14,30 @@ type GRPCServer struct {
 }
 
 func (s *GRPCServer) Run(port string, handlers *grpcHandler.UserHandler) error {
-	s.GRPCServer = grpc.NewServer()
 	lis, err := net.Listen("tcp", ":"+port)
 	if err != nil {
 		return err
 	}
 
+	s.GRPCServer = grpc.NewServer()
 	userpb.RegisterUserServiceServer(s.GRPCServer, handlers)
 	return s.GRPCServer.Serve(lis)
+}
+
+func (s *GRPCServer) Shutdown(ctx context.Context) {
+	if s.GRPCServer == nil {
+		return
+	}
+
+	done := make(chan struct{})
+	go func() {
+		s.GRPCServer.GracefulStop()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-ctx.Done():
+		s.GRPCServer.Stop()
+	}
 }
