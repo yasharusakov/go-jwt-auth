@@ -10,7 +10,9 @@ import (
 	"auth-service/internal/service"
 	"auth-service/internal/storage"
 	"context"
+	"errors"
 	"log"
+	"net/http"
 	"os/signal"
 	"syscall"
 	"time"
@@ -70,18 +72,24 @@ func Run() {
 	errChan := make(chan error, 1)
 
 	go func() {
+		log.Printf("HTTP server is running on port: %s", cfg.Port)
 		errChan <- httpServer.Run(cfg.Port, routes)
 	}()
 
-	log.Printf("Server is running on port: %s", cfg.Port)
+	handleRunErr := func(err error) {
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Printf("Server error: %v", err)
+		} else {
+			log.Println("Stopped cleanly")
+		}
+	}
 
 	select {
 	case <-ctx.Done():
 		log.Println("Shutdown signal received")
-	case err = <-errChan:
-		if err != nil {
-			log.Fatalf("Error occurred while starting server: %v", err)
-		}
+	case err := <-errChan:
+		handleRunErr(err)
+		return
 	}
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -92,4 +100,6 @@ func Run() {
 	} else {
 		log.Println("Server shutdown gracefully")
 	}
+
+	handleRunErr(<-errChan)
 }

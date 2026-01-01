@@ -2,7 +2,9 @@ package app
 
 import (
 	"context"
+	"errors"
 	"log"
+	"net/http"
 	"os/signal"
 	"sync"
 	"syscall"
@@ -15,6 +17,8 @@ import (
 	"user-service/internal/server"
 	"user-service/internal/service"
 	"user-service/internal/storage"
+
+	"google.golang.org/grpc"
 )
 
 func Run() {
@@ -72,8 +76,9 @@ func Run() {
 	go func() {
 		defer wg.Done()
 		log.Printf("gRPC server is running on port: %s", cfg.GRPCUserServicePort)
-		if err := grpcServer.Run(cfg.GRPCUserServicePort, grpcHandlers); err != nil {
-			errChan <- err
+
+		if runErr := grpcServer.Run(cfg.GRPCUserServicePort, grpcHandlers); runErr != nil && !errors.Is(runErr, grpc.ErrServerStopped) {
+			errChan <- runErr
 		}
 	}()
 
@@ -82,8 +87,9 @@ func Run() {
 	go func() {
 		defer wg.Done()
 		log.Printf("HTTP server is running on port: %s", cfg.Port)
-		if err := httpServer.Run(cfg.Port, routes); err != nil {
-			errChan <- err
+
+		if runErr := httpServer.Run(cfg.Port, routes); runErr != nil && !errors.Is(runErr, http.ErrServerClosed) {
+			errChan <- runErr
 		}
 	}()
 
@@ -92,19 +98,22 @@ func Run() {
 		log.Println("Shutdown signal received")
 	case err = <-errChan:
 		log.Printf("Server error: %v", err)
+		stop()
 	}
 
 	// Graceful shutdown
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
+	// HTTP shutdown
 	if err := httpServer.Shutdown(shutdownCtx); err != nil {
 		log.Printf("HTTP server shutdown error: %v", err)
 	} else {
 		log.Println("HTTP server shutdown gracefully")
 	}
-	grpcServer.GRPCServer.GracefulStop()
-	log.Println("gRPC server shutdown gracefully")
+
+	// gRPC shutdown
+	grpcServer.Shutdown(shutdownCtx)
 
 	wg.Wait()
 }
