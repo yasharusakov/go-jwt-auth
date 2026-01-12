@@ -1,9 +1,21 @@
 package util
 
 import (
+	"auth-service/internal/config"
+	"net/http"
+	"net/http/httptest"
+	"os"
 	"testing"
 	"time"
 )
+
+func setupMockConfig() {
+	os.Setenv("APP_ENV", "production")
+	os.Setenv("JWT_REFRESH_TOKEN_EXPIRATION", "15m")
+	os.Setenv("JWT_ACCESS_TOKEN_EXPIRATION", "24h")
+	os.Setenv("JWT_REFRESH_TOKEN_EXPIRATION", "15m")
+	os.Setenv("JWT_ACCESS_TOKEN_EXPIRATION", "24h")
+}
 
 func TestGenerateToken(t *testing.T) {
 	secret := []byte("secret")
@@ -45,5 +57,101 @@ func TestGenerateToken(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestGenerateTokens(t *testing.T) {
+	setupMockConfig()
+
+	userID := "user123"
+
+	accessToken, refreshToken, err := GenerateTokens(userID)
+	if err != nil {
+		t.Fatalf("GenerateTokens() error = %v", err)
+	}
+
+	if accessToken == "" || refreshToken == "" {
+		t.Errorf("GenerateTokens() accessToken = %v, refreshToken = %v; want non-empty tokens", accessToken, refreshToken)
+	}
+
+	cfg := config.GetConfig()
+	claims, err := ValidateToken(accessToken, []byte(cfg.JWT.JWTAccessTokenSecret))
+	if err != nil {
+		t.Errorf("AccessToken validation failed: %v", err)
+	}
+	if claims.Subject != userID {
+		t.Errorf("AccessToken wrong subject: got %s, want %s", claims.Subject, userID)
+	}
+
+	claimsRef, err := ValidateToken(refreshToken, []byte(cfg.JWT.JWTRefreshTokenSecret))
+	if err != nil {
+		t.Errorf("RefreshToken validation failed: %v", err)
+	}
+	if claimsRef.Subject != userID {
+		t.Errorf("RefreshToken wrong subject: got %s, want %s", claimsRef.Subject, userID)
+	}
+}
+
+func TestSetRefreshTokenCookie(t *testing.T) {
+	setupMockConfig()
+
+	recorder := httptest.NewRecorder()
+	token := "test_refresh_token"
+
+	SetRefreshTokenCookie(recorder, token)
+
+	res := recorder.Result()
+	cookies := res.Cookies()
+
+	if len(cookies) == 0 {
+		t.Fatal("No cookies set")
+	}
+
+	cookie := cookies[0]
+
+	if cookie.Name != "refresh_token" {
+		t.Errorf("Wrong cookie name: got %s, want refresh_token", cookie.Name)
+	}
+	if cookie.Value != token {
+		t.Errorf("Wrong cookie value: got %s, want %s", cookie.Value, token)
+	}
+	if !cookie.HttpOnly {
+		t.Error("Cookie should be HttpOnly")
+	}
+	if cookie.Path != "/" {
+		t.Error("Cookie path should be /")
+	}
+	if !cookie.Secure {
+		t.Error("Cookie should be Secure in production")
+	}
+	if cookie.SameSite != http.SameSiteLaxMode {
+		t.Error("Cookie SameSite should be Lax")
+	}
+}
+
+func TestRemoveRefreshTokenCookie(t *testing.T) {
+	setupMockConfig()
+
+	recorder := httptest.NewRecorder()
+
+	RemoveRefreshTokenCookie(recorder)
+
+	res := recorder.Result()
+	cookies := res.Cookies()
+
+	if len(cookies) == 0 {
+		t.Fatal("No cookies set for removal")
+	}
+
+	cookie := cookies[0]
+
+	if cookie.Value != "" {
+		t.Error("Cookie value should be empty")
+	}
+	if cookie.MaxAge >= 0 {
+		t.Error("Cookie MaxAge should be negative")
+	}
+	if !cookie.Expires.Before(time.Now()) {
+		t.Error("Cookie Expires should be in the past")
 	}
 }
