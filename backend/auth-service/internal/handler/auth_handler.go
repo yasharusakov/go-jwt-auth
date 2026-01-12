@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"auth-service/internal/config"
 	"auth-service/internal/model"
 	"auth-service/internal/service"
 	"auth-service/internal/util"
@@ -67,8 +68,10 @@ func (h *authHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	cfg := config.GetConfig()
+
 	// generate tokens
-	accessToken, refreshToken, err := util.GenerateTokens(user.Id)
+	accessToken, refreshToken, err := util.GenerateTokens(user.Id, cfg.JWT)
 	if err != nil {
 		http.Error(w, "error creating tokens"+err.Error(), http.StatusInternalServerError)
 		return
@@ -82,7 +85,7 @@ func (h *authHandler) Register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// set refresh_token in httponly cookie
-	util.SetRefreshTokenCookie(w, refreshToken)
+	util.SetRefreshTokenCookie(w, refreshToken, cfg.JWT.JWTRefreshTokenExp, cfg.AppEnv == "production")
 
 	// get user by id
 	userById, err := h.service.GetUserByID(r.Context(), user.Id)
@@ -131,8 +134,10 @@ func (h *authHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	cfg := config.GetConfig()
+
 	// generate access and refresh tokens
-	accessToken, refreshToken, err := util.GenerateTokens(userData.User.Id)
+	accessToken, refreshToken, err := util.GenerateTokens(userData.User.Id, cfg.JWT)
 	if err != nil {
 		http.Error(w, "error creating tokens", http.StatusInternalServerError)
 		return
@@ -146,7 +151,7 @@ func (h *authHandler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// set refresh_token in httponly cookie
-	util.SetRefreshTokenCookie(w, refreshToken)
+	util.SetRefreshTokenCookie(w, refreshToken, cfg.JWT.JWTRefreshTokenExp, cfg.AppEnv == "production")
 
 	// return the new access token and user data
 	w.Header().Set("Content-Type", "application/json")
@@ -224,6 +229,9 @@ func (h *authHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	if err == nil {
 		_ = h.service.RemoveRefreshToken(r.Context(), cookie.Value)
 	}
-	util.RemoveRefreshTokenCookie(w)
+
+	cfg := config.GetConfig()
+
+	util.RemoveRefreshTokenCookie(w, cfg.AppEnv == "production")
 	w.WriteHeader(http.StatusOK)
 }
