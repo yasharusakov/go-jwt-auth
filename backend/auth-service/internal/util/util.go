@@ -11,16 +11,14 @@ import (
 
 func GenerateToken(userID string, ttl time.Duration, secret []byte) (string, error) {
 	claims := jwt.RegisteredClaims{
-		Subject:   fmt.Sprint(userID),
+		Subject:   userID,
 		ExpiresAt: jwt.NewNumericDate(time.Now().Add(ttl)),
 		IssuedAt:  jwt.NewNumericDate(time.Now()),
 	}
 	return jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString(secret)
 }
 
-func GenerateTokens(userID string) (string, string, error) {
-	jwtCfg := config.GetConfig().JWT
-
+func GenerateTokens(userID string, jwtCfg config.JWTConfig) (string, string, error) {
 	accessToken, err := GenerateToken(userID, jwtCfg.JWTAccessTokenExp, []byte(jwtCfg.JWTAccessTokenSecret))
 	if err != nil {
 		return "", "", fmt.Errorf("failed to generate access token: %w", err)
@@ -51,25 +49,19 @@ func ValidateToken(tokenStr string, secret []byte) (*jwt.RegisteredClaims, error
 	return claims, nil
 }
 
-func SetRefreshTokenCookie(w http.ResponseWriter, refreshToken string) {
-	cfg := config.GetConfig()
-	secure := cfg.AppEnv == "production"
-
+func SetRefreshTokenCookie(w http.ResponseWriter, refreshToken string, exp time.Duration, isProd bool) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     "refresh_token",
 		Value:    refreshToken,
-		Expires:  time.Now().Add(cfg.JWT.JWTRefreshTokenExp),
+		Expires:  time.Now().Add(exp),
 		HttpOnly: true,
 		Path:     "/",
-		Secure:   secure,
+		Secure:   isProd,
 		SameSite: http.SameSiteLaxMode,
 	})
 }
 
-func RemoveRefreshTokenCookie(w http.ResponseWriter) {
-	appEnv := config.GetConfig().AppEnv
-	secure := appEnv == "production"
-
+func RemoveRefreshTokenCookie(w http.ResponseWriter, isProd bool) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     "refresh_token",
 		Value:    "",
@@ -77,7 +69,7 @@ func RemoveRefreshTokenCookie(w http.ResponseWriter) {
 		MaxAge:   -1,
 		Expires:  time.Unix(0, 0),
 		HttpOnly: true,
-		Secure:   secure,
+		Secure:   isProd,
 		SameSite: http.SameSiteLaxMode,
 	})
 }

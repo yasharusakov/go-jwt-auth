@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"sync"
@@ -46,44 +47,52 @@ var (
 	once sync.Once
 )
 
+func LoadConfigFromEnv() (*Config, error) {
+	accessExp, err := time.ParseDuration(os.Getenv("JWT_ACCESS_TOKEN_EXPIRATION"))
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse JWT_ACCESS_TOKEN_EXPIRATION: %w", err)
+	}
+
+	expRefresh, err := time.ParseDuration(os.Getenv("JWT_REFRESH_TOKEN_EXPIRATION"))
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse JWT_REFRESH_TOKEN_EXPIRATION: %w", err)
+	}
+
+	return &Config{
+		AppEnv:              os.Getenv("APP_ENV"),
+		Port:                os.Getenv("API_AUTH_SERVICE_PORT"),
+		ApiUserServiceURL:   os.Getenv("API_USER_SERVICE_URL"),
+		GRPCUserServicePort: os.Getenv("GRPC_USER_SERVICE_PORT"),
+		GRPCUserServiceURL:  os.Getenv("GRPC_USER_SERVICE_URL"),
+		NATS: NATSConfig{
+			NatsUser:     os.Getenv("NATS_USER"),
+			NatsPassword: os.Getenv("NATS_PASSWORD"),
+			NatsHost:     os.Getenv("NATS_HOST"),
+			NatsPort:     os.Getenv("NATS_PORT"),
+		},
+		Postgres: PostgresConfig{
+			PostgresUser:     os.Getenv("DB_AUTH_POSTGRES_USER"),
+			PostgresPassword: os.Getenv("DB_AUTH_POSTGRES_PASSWORD"),
+			PostgresHost:     os.Getenv("DB_AUTH_POSTGRES_HOST"),
+			PostgresPort:     os.Getenv("DB_AUTH_POSTGRES_INTERNAL_PORT"),
+			PostgresDB:       os.Getenv("DB_AUTH_POSTGRES_DB"),
+			PostgresSSLMode:  os.Getenv("DB_AUTH_POSTGRES_SSLMODE"),
+		},
+		JWT: JWTConfig{
+			JWTAccessTokenSecret:  os.Getenv("JWT_ACCESS_TOKEN_SECRET"),
+			JWTRefreshTokenSecret: os.Getenv("JWT_REFRESH_TOKEN_SECRET"),
+			JWTAccessTokenExp:     accessExp,
+			JWTRefreshTokenExp:    expRefresh,
+		},
+	}, err
+}
+
 func GetConfig() *Config {
 	once.Do(func() {
-		accessExp, err := time.ParseDuration(os.Getenv("JWT_ACCESS_TOKEN_EXPIRATION"))
+		var err error
+		cfg, err = LoadConfigFromEnv()
 		if err != nil {
-			log.Fatalf("Error parsing JWT_ACCESS_TOKEN_EXPIRATION: %v", err)
-		}
-
-		expRefresh, err := time.ParseDuration(os.Getenv("JWT_REFRESH_TOKEN_EXPIRATION"))
-		if err != nil {
-			log.Fatalf("Error parsing JWT_REFRESH_TOKEN_EXPIRATION: %v", err)
-		}
-
-		cfg = &Config{
-			AppEnv:              os.Getenv("APP_ENV"),
-			Port:                os.Getenv("API_AUTH_SERVICE_PORT"),
-			ApiUserServiceURL:   os.Getenv("API_USER_SERVICE_URL"),
-			GRPCUserServicePort: os.Getenv("GRPC_USER_SERVICE_PORT"),
-			GRPCUserServiceURL:  os.Getenv("GRPC_USER_SERVICE_URL"),
-			NATS: NATSConfig{
-				NatsUser:     os.Getenv("NATS_USER"),
-				NatsPassword: os.Getenv("NATS_PASSWORD"),
-				NatsHost:     os.Getenv("NATS_HOST"),
-				NatsPort:     os.Getenv("NATS_PORT"),
-			},
-			Postgres: PostgresConfig{
-				PostgresUser:     os.Getenv("DB_AUTH_POSTGRES_USER"),
-				PostgresPassword: os.Getenv("DB_AUTH_POSTGRES_PASSWORD"),
-				PostgresHost:     os.Getenv("DB_AUTH_POSTGRES_HOST"),
-				PostgresPort:     os.Getenv("DB_AUTH_POSTGRES_INTERNAL_PORT"),
-				PostgresDB:       os.Getenv("DB_AUTH_POSTGRES_DB"),
-				PostgresSSLMode:  os.Getenv("DB_AUTH_POSTGRES_SSLMODE"),
-			},
-			JWT: JWTConfig{
-				JWTAccessTokenSecret:  os.Getenv("JWT_ACCESS_TOKEN_SECRET"),
-				JWTRefreshTokenSecret: os.Getenv("JWT_REFRESH_TOKEN_SECRET"),
-				JWTAccessTokenExp:     accessExp,
-				JWTRefreshTokenExp:    expRefresh,
-			},
+			log.Fatal(err)
 		}
 	})
 

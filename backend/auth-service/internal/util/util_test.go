@@ -4,18 +4,9 @@ import (
 	"auth-service/internal/config"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 	"time"
 )
-
-func setupMockConfig() {
-	os.Setenv("APP_ENV", "production")
-	os.Setenv("JWT_REFRESH_TOKEN_EXPIRATION", "15m")
-	os.Setenv("JWT_ACCESS_TOKEN_EXPIRATION", "24h")
-	os.Setenv("JWT_REFRESH_TOKEN_EXPIRATION", "15m")
-	os.Setenv("JWT_ACCESS_TOKEN_EXPIRATION", "24h")
-}
 
 func TestGenerateToken(t *testing.T) {
 	secret := []byte("secret")
@@ -61,11 +52,16 @@ func TestGenerateToken(t *testing.T) {
 }
 
 func TestGenerateTokens(t *testing.T) {
-	setupMockConfig()
+	mockJWTCfg := config.JWTConfig{
+		JWTAccessTokenSecret:  "access_secret",
+		JWTRefreshTokenSecret: "refresh_secret",
+		JWTAccessTokenExp:     15 * time.Minute,
+		JWTRefreshTokenExp:    24 * time.Hour,
+	}
 
 	userID := "user123"
 
-	accessToken, refreshToken, err := GenerateTokens(userID)
+	accessToken, refreshToken, err := GenerateTokens(userID, mockJWTCfg)
 	if err != nil {
 		t.Fatalf("GenerateTokens() error = %v", err)
 	}
@@ -74,8 +70,7 @@ func TestGenerateTokens(t *testing.T) {
 		t.Errorf("GenerateTokens() accessToken = %v, refreshToken = %v; want non-empty tokens", accessToken, refreshToken)
 	}
 
-	cfg := config.GetConfig()
-	claims, err := ValidateToken(accessToken, []byte(cfg.JWT.JWTAccessTokenSecret))
+	claims, err := ValidateToken(accessToken, []byte(mockJWTCfg.JWTAccessTokenSecret))
 	if err != nil {
 		t.Errorf("AccessToken validation failed: %v", err)
 	}
@@ -83,7 +78,7 @@ func TestGenerateTokens(t *testing.T) {
 		t.Errorf("AccessToken wrong subject: got %s, want %s", claims.Subject, userID)
 	}
 
-	claimsRef, err := ValidateToken(refreshToken, []byte(cfg.JWT.JWTRefreshTokenSecret))
+	claimsRef, err := ValidateToken(refreshToken, []byte(mockJWTCfg.JWTRefreshTokenSecret))
 	if err != nil {
 		t.Errorf("RefreshToken validation failed: %v", err)
 	}
@@ -93,12 +88,10 @@ func TestGenerateTokens(t *testing.T) {
 }
 
 func TestSetRefreshTokenCookie(t *testing.T) {
-	setupMockConfig()
-
 	recorder := httptest.NewRecorder()
 	token := "test_refresh_token"
 
-	SetRefreshTokenCookie(recorder, token)
+	SetRefreshTokenCookie(recorder, token, 24*time.Hour, true)
 
 	res := recorder.Result()
 	cookies := res.Cookies()
@@ -130,11 +123,9 @@ func TestSetRefreshTokenCookie(t *testing.T) {
 }
 
 func TestRemoveRefreshTokenCookie(t *testing.T) {
-	setupMockConfig()
-
 	recorder := httptest.NewRecorder()
 
-	RemoveRefreshTokenCookie(recorder)
+	RemoveRefreshTokenCookie(recorder, true)
 
 	res := recorder.Result()
 	cookies := res.Cookies()
