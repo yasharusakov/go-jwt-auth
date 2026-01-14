@@ -11,7 +11,7 @@ import (
 
 type TokenRepository interface {
 	SaveRefreshToken(ctx context.Context, userID string, refreshToken string) error
-	RemoveRefreshTokenFromDB(ctx context.Context, refreshToken string) error
+	RemoveRefreshToken(ctx context.Context, refreshToken string) error
 }
 
 type tokenRepository struct {
@@ -31,7 +31,7 @@ func (r *tokenRepository) SaveRefreshToken(ctx context.Context, userID string, r
 	return nil
 }
 
-func (r *tokenRepository) RemoveRefreshTokenFromDB(ctx context.Context, refreshToken string) error {
+func (r *tokenRepository) RemoveRefreshToken(ctx context.Context, refreshToken string) error {
 	_, err := r.db.Exec(ctx, "DELETE FROM refresh_tokens WHERE token = $1", refreshToken)
 	if err != nil {
 		return fmt.Errorf("failed to remove refresh token: %w", err)

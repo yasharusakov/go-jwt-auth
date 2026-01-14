@@ -2,14 +2,14 @@ package handler
 
 import (
 	"auth-service/internal/config"
-	"auth-service/internal/model"
 	"auth-service/internal/service"
 	"auth-service/internal/util"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net/http"
-	"os"
-	"time"
 
+	"github.com/go-playground/validator/v10"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -18,33 +18,49 @@ type AuthHandler interface {
 	Login(w http.ResponseWriter, r *http.Request)
 	Refresh(w http.ResponseWriter, r *http.Request)
 	Logout(w http.ResponseWriter, r *http.Request)
+	decodeAndValidate(r *http.Request, dst any) error
 }
 
 type authHandler struct {
-	service service.AuthService
+	service   service.AuthService
+	validator *validator.Validate
 }
 
 func NewAuthHandler(service service.AuthService) AuthHandler {
-	return &authHandler{service: service}
+	return &authHandler{
+		service:   service,
+		validator: validator.New(),
+	}
+}
+
+func (h *authHandler) decodeAndValidate(r *http.Request, dst any) error {
+	if err := json.NewDecoder(r.Body).Decode(dst); err != nil {
+		return fmt.Errorf("%w: %w", ErrInvalidRequestBody, err)
+	}
+	if err := h.validator.Struct(dst); err != nil {
+		var validationErrors validator.ValidationErrors
+		if errors.As(err, &validationErrors) {
+			return fmt.Errorf("%w: %w", ErrValidationFailed, validationErrors)
+		}
+		return ErrValidationFailed
+	}
+	return nil
 }
 
 func (h *authHandler) Register(w http.ResponseWriter, r *http.Request) {
 	// parse the request body
-	var RequestBody model.User
-	err := json.NewDecoder(r.Body).Decode(&RequestBody)
-	if err != nil {
-		http.Error(w, "invalid request body", http.StatusBadRequest)
+	var req RegisterRequest
+	if err := h.decodeAndValidate(r, &req); err != nil {
+		writeError(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	// validate user input
-	if RequestBody.Email == "" || RequestBody.Password == "" {
-		http.Error(w, "email or password is empty", http.StatusBadRequest)
-		return
-	}
+	// TODO!: Layers (handler -> service -> repository)
+	// TODO!: Move business logic to service layer
+	// TODO!: make cfg global and do not call it every time in handler
 
 	// check if user with the given email already exists
-	exists, err := h.service.CheckUserExistsByEmail(r.Context(), RequestBody.Email)
+	exists, err := h.service.CheckUserExistsByEmail(r.Context(), req.Email)
 	if err != nil {
 		http.Error(w, "storage error"+err.Error(), http.StatusInternalServerError)
 		return
@@ -55,21 +71,20 @@ func (h *authHandler) Register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// hash the password
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(RequestBody.Password), bcrypt.DefaultCost)
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
 		http.Error(w, "error hashing password", http.StatusInternalServerError)
 		return
 	}
 
 	// registration query
-	user, err := h.service.RegisterUser(r.Context(), RequestBody.Email, hashedPassword)
+	user, err := h.service.RegisterUser(r.Context(), req.Email, hashedPassword)
 	if err != nil {
 		http.Error(w, "registration error"+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	cfg := config.GetConfig()
-
 	// generate tokens
 	accessToken, refreshToken, err := util.GenerateTokens(user.Id, cfg.JWT)
 	if err != nil {
@@ -95,40 +110,32 @@ func (h *authHandler) Register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// return the new access token and user data
-	w.Header().Set("Content-Type", "application/json")
-	err = json.NewEncoder(w).Encode(map[string]interface{}{
-		"access_token": accessToken,
-		"user": map[string]interface{}{
-			"id":    userById.User.Id,
-			"email": userById.User.Email,
+	writeJSON(w, http.StatusOK, AuthResponse{
+		AccessToken: accessToken,
+		User: UserResponse{
+			ID:    userById.User.Id,
+			Email: userById.User.Email,
 		},
 	})
-	if err != nil {
-		http.Error(w, "error encoding response", http.StatusInternalServerError)
-		return
-	}
 }
 
 func (h *authHandler) Login(w http.ResponseWriter, r *http.Request) {
 	// parse the request body
-	var reqBody struct {
-		Email    string `json:"email"`
-		Password string `json:"password"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&reqBody); err != nil {
-		http.Error(w, "invalid request body", http.StatusBadRequest)
+	var req LoginRequest
+	if err := h.decodeAndValidate(r, &req); err != nil {
+		writeError(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
 	// get user by email
-	userData, err := h.service.GetUserByEmail(r.Context(), reqBody.Email)
+	userData, err := h.service.GetUserByEmail(r.Context(), req.Email)
 	if err != nil {
 		http.Error(w, "invalid email or password", http.StatusUnauthorized)
 		return
 	}
 
 	// compare the hashed password with the provided password
-	err = bcrypt.CompareHashAndPassword([]byte(userData.User.Password), []byte(reqBody.Password))
+	err = bcrypt.CompareHashAndPassword([]byte(userData.User.Password), []byte(req.Password))
 	if err != nil {
 		http.Error(w, "invalid email or password", http.StatusUnauthorized)
 		return
@@ -154,30 +161,19 @@ func (h *authHandler) Login(w http.ResponseWriter, r *http.Request) {
 	util.SetRefreshTokenCookie(w, refreshToken, cfg.JWT.JWTRefreshTokenExp, cfg.AppEnv == "production")
 
 	// return the new access token and user data
-	w.Header().Set("Content-Type", "application/json")
-	err = json.NewEncoder(w).Encode(map[string]interface{}{
-		"access_token": accessToken,
-		"user": map[string]interface{}{
-			"id":    userData.User.Id,
-			"email": userData.User.Email,
+	writeJSON(w, http.StatusOK, AuthResponse{
+		AccessToken: accessToken,
+		User: UserResponse{
+			ID:    userData.User.Id,
+			Email: userData.User.Email,
 		},
 	})
-	if err != nil {
-		http.Error(w, "error encoding response", http.StatusInternalServerError)
-		return
-	}
 }
 
 // update the access token
 func (h *authHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 	// load jwt secrets and expiration from environment variables
-	accessSecret := os.Getenv("JWT_ACCESS_TOKEN_SECRET")
-	refreshSecret := os.Getenv("JWT_REFRESH_TOKEN_SECRET")
-	jwtAccessTokenExp, err := time.ParseDuration(os.Getenv("JWT_ACCESS_TOKEN_EXPIRATION"))
-	if err != nil {
-		http.Error(w, "invalid access token expiration duration", http.StatusInternalServerError)
-		return
-	}
+	cfg := config.GetConfig()
 
 	// check if the refresh token cookie exists
 	cookie, err := r.Cookie("refresh_token")
@@ -187,7 +183,7 @@ func (h *authHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// validate the refresh token
-	claims, err := util.ValidateToken(cookie.Value, []byte(refreshSecret))
+	claims, err := util.ValidateToken(cookie.Value, []byte(cfg.JWT.JWTRefreshTokenSecret))
 	if err != nil {
 		http.Error(w, "invalid or expired refresh token", http.StatusUnauthorized)
 		return
@@ -197,7 +193,7 @@ func (h *authHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 	userID := claims.Subject
 
 	// generate new access token
-	newAccessToken, err := util.GenerateToken(userID, jwtAccessTokenExp, []byte(accessSecret))
+	newAccessToken, err := util.GenerateToken(userID, cfg.JWT.JWTAccessTokenExp, []byte(cfg.JWT.JWTAccessTokenSecret))
 	if err != nil {
 		http.Error(w, "error generating new access token", http.StatusInternalServerError)
 		return
@@ -210,18 +206,13 @@ func (h *authHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// return the new access token and user data
-	w.Header().Set("Content-Type", "application/json")
-	err = json.NewEncoder(w).Encode(map[string]interface{}{
-		"access_token": newAccessToken,
-		"user": map[string]interface{}{
-			"id":    userData.User.Id,
-			"email": userData.User.Email,
+	writeJSON(w, http.StatusOK, AuthResponse{
+		AccessToken: newAccessToken,
+		User: UserResponse{
+			ID:    userData.User.Id,
+			Email: userData.User.Email,
 		},
 	})
-	if err != nil {
-		http.Error(w, "error encoding response", http.StatusInternalServerError)
-		return
-	}
 }
 
 func (h *authHandler) Logout(w http.ResponseWriter, r *http.Request) {

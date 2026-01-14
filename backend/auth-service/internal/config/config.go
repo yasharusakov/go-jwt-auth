@@ -47,6 +47,8 @@ var (
 	once sync.Once
 )
 
+// TODO!: Return by value to avoid accidental modification of the config
+
 func LoadConfigFromEnv() (*Config, error) {
 	accessExp, err := time.ParseDuration(os.Getenv("JWT_ACCESS_TOKEN_EXPIRATION"))
 	if err != nil {
