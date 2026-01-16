@@ -9,9 +9,12 @@ import (
 )
 
 type TokenManager interface {
+	GenerateToken(userID string, ttl time.Duration, secret []byte) (string, error)
 	GenerateAccessToken(userID string) (string, error)
 	GenerateRefreshToken(userID string) (string, error)
 	GenerateTokens(userID string) (string, string, error)
+
+	ValidateToken(tokenStr string, secret []byte) (*jwt.RegisteredClaims, error)
 	ValidateRefreshToken(tokenStr string) (*jwt.RegisteredClaims, error)
 }
 
@@ -32,11 +35,11 @@ func NewTokenManager(JWT config.JWTConfig) TokenManager {
 }
 
 func (m *manager) GenerateAccessToken(userID string) (string, error) {
-	return m.generateToken(userID, m.accessTTL, m.accessSecret)
+	return m.GenerateToken(userID, m.accessTTL, m.accessSecret)
 }
 
 func (m *manager) GenerateRefreshToken(userID string) (string, error) {
-	return m.generateToken(userID, m.refreshTTL, m.refreshSecret)
+	return m.GenerateToken(userID, m.refreshTTL, m.refreshSecret)
 }
 
 func (m *manager) GenerateTokens(userID string) (string, string, error) {
@@ -53,7 +56,11 @@ func (m *manager) GenerateTokens(userID string) (string, string, error) {
 	return accessToken, refreshToken, nil
 }
 
-func (m *manager) generateToken(userID string, ttl time.Duration, secret []byte) (string, error) {
+func (m *manager) ValidateRefreshToken(tokenStr string) (*jwt.RegisteredClaims, error) {
+	return m.ValidateToken(tokenStr, m.refreshSecret)
+}
+
+func (m *manager) GenerateToken(userID string, ttl time.Duration, secret []byte) (string, error) {
 	claims := jwt.RegisteredClaims{
 		Subject:   userID,
 		ExpiresAt: jwt.NewNumericDate(time.Now().Add(ttl)),
@@ -62,11 +69,7 @@ func (m *manager) generateToken(userID string, ttl time.Duration, secret []byte)
 	return jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString(secret)
 }
 
-func (m *manager) ValidateRefreshToken(tokenStr string) (*jwt.RegisteredClaims, error) {
-	return m.validateToken(tokenStr, m.refreshSecret)
-}
-
-func (m *manager) validateToken(tokenStr string, secret []byte) (*jwt.RegisteredClaims, error) {
+func (m *manager) ValidateToken(tokenStr string, secret []byte) (*jwt.RegisteredClaims, error) {
 	token, err := jwt.ParseWithClaims(tokenStr, &jwt.RegisteredClaims{}, func(token *jwt.Token) (any, error) {
 		return secret, nil
 	})
