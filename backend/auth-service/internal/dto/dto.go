@@ -1,4 +1,4 @@
-package handler
+package dto
 
 type RegisterRequest struct {
 	Email    string `json:"email" validate:"required,email"`
@@ -18,6 +18,17 @@ type UserResponse struct {
 type AuthResponse struct {
 	AccessToken string       `json:"access_token"`
 	User        UserResponse `json:"user"`
+}
+
+type AuthResult struct {
+	AccessToken  string
+	RefreshToken string
+	User         UserResponse
+}
+
+type RefreshResult struct {
+	AccessToken string
+	User        UserResponse
 }
 
 type ErrorResponse struct {

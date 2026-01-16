@@ -1,7 +1,10 @@
 package handler
 
 import (
+	"auth-service/internal/apperror"
 	"auth-service/internal/config"
+	"auth-service/internal/dto"
+	"auth-service/internal/httpresponse"
 	"auth-service/internal/service"
 	"auth-service/internal/util"
 	"encoding/json"
@@ -10,7 +13,6 @@ import (
 	"net/http"
 
 	"github.com/go-playground/validator/v10"
-	"golang.org/x/crypto/bcrypt"
 )
 
 type AuthHandler interface {
@@ -18,211 +20,126 @@ type AuthHandler interface {
 	Login(w http.ResponseWriter, r *http.Request)
 	Refresh(w http.ResponseWriter, r *http.Request)
 	Logout(w http.ResponseWriter, r *http.Request)
-	decodeAndValidate(r *http.Request, dst any) error
 }
 
 type authHandler struct {
 	service   service.AuthService
 	validator *validator.Validate
+	cfg       *config.Config
 }
 
-func NewAuthHandler(service service.AuthService) AuthHandler {
+func NewAuthHandler(service service.AuthService, cfg *config.Config) AuthHandler {
 	return &authHandler{
 		service:   service,
 		validator: validator.New(),
+		cfg:       cfg,
 	}
 }
 
 func (h *authHandler) decodeAndValidate(r *http.Request, dst any) error {
 	if err := json.NewDecoder(r.Body).Decode(dst); err != nil {
-		return fmt.Errorf("%w: %w", ErrInvalidRequestBody, err)
+		return fmt.Errorf("%w: %w", apperror.ErrInvalidRequestBody, err)
 	}
 	if err := h.validator.Struct(dst); err != nil {
 		var validationErrors validator.ValidationErrors
 		if errors.As(err, &validationErrors) {
-			return fmt.Errorf("%w: %w", ErrValidationFailed, validationErrors)
+			return fmt.Errorf("%w: %w", apperror.ErrValidationFailed, validationErrors)
 		}
-		return ErrValidationFailed
+		return apperror.ErrValidationFailed
 	}
 	return nil
 }
 
 func (h *authHandler) Register(w http.ResponseWriter, r *http.Request) {
-	// parse the request body
-	var req RegisterRequest
+	var req dto.RegisterRequest
 	if err := h.decodeAndValidate(r, &req); err != nil {
-		writeError(w, err.Error(), http.StatusBadRequest)
+		httpresponse.WriteError(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	// TODO!: Layers (handler -> service -> repository)
-	// TODO!: Move business logic to service layer
-	// TODO!: make cfg global and do not call it every time in handler
+	result, err := h.service.Register(r.Context(), req.Email, req.Password)
 
-	// check if user with the given email already exists
-	exists, err := h.service.CheckUserExistsByEmail(r.Context(), req.Email)
 	if err != nil {
-		http.Error(w, "storage error"+err.Error(), http.StatusInternalServerError)
-		return
-	}
-	if exists.Exists {
-		http.Error(w, "user already exists", http.StatusBadRequest)
-		return
-	}
-
-	// hash the password
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
-	if err != nil {
-		http.Error(w, "error hashing password", http.StatusInternalServerError)
+		switch {
+		case errors.Is(err, apperror.ErrUserAlreadyExists):
+			httpresponse.WriteError(w, "user already exists", http.StatusConflict)
+		default:
+			httpresponse.WriteError(w, "internal error", http.StatusInternalServerError)
+		}
 		return
 	}
 
-	// registration query
-	user, err := h.service.RegisterUser(r.Context(), req.Email, hashedPassword)
-	if err != nil {
-		http.Error(w, "registration error"+err.Error(), http.StatusInternalServerError)
-		return
-	}
+	util.SetRefreshTokenCookie(w, result.RefreshToken, h.cfg.JWT.JWTRefreshTokenExp, h.cfg.AppEnv == "production")
 
-	cfg := config.GetConfig()
-	// generate tokens
-	accessToken, refreshToken, err := util.GenerateTokens(user.Id, cfg.JWT)
-	if err != nil {
-		http.Error(w, "error creating tokens"+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	// save refresh token in the storage
-	err = h.service.SaveRefreshToken(r.Context(), user.Id, refreshToken)
-	if err != nil {
-		http.Error(w, "error saving refresh token"+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	// set refresh_token in httponly cookie
-	util.SetRefreshTokenCookie(w, refreshToken, cfg.JWT.JWTRefreshTokenExp, cfg.AppEnv == "production")
-
-	// get user by id
-	userById, err := h.service.GetUserByID(r.Context(), user.Id)
-	if err != nil {
-		http.Error(w, "error retrieving user data", http.StatusInternalServerError)
-		return
-	}
-
-	// return the new access token and user data
-	writeJSON(w, http.StatusOK, AuthResponse{
-		AccessToken: accessToken,
-		User: UserResponse{
-			ID:    userById.User.Id,
-			Email: userById.User.Email,
-		},
+	httpresponse.WriteJSON(w, http.StatusOK, dto.AuthResponse{
+		AccessToken: result.AccessToken,
+		User:        result.User,
 	})
 }
 
 func (h *authHandler) Login(w http.ResponseWriter, r *http.Request) {
-	// parse the request body
-	var req LoginRequest
+	var req dto.LoginRequest
 	if err := h.decodeAndValidate(r, &req); err != nil {
-		writeError(w, err.Error(), http.StatusBadRequest)
+		httpresponse.WriteError(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	// get user by email
-	userData, err := h.service.GetUserByEmail(r.Context(), req.Email)
+	result, err := h.service.Login(r.Context(), req.Email, req.Password)
+
 	if err != nil {
-		http.Error(w, "invalid email or password", http.StatusUnauthorized)
+		switch {
+		case errors.Is(err, apperror.ErrInvalidEmailOrPassword):
+			httpresponse.WriteError(w, "invalid email or password", http.StatusUnauthorized)
+		default:
+			httpresponse.WriteError(w, "internal error", http.StatusInternalServerError)
+		}
 		return
 	}
 
-	// compare the hashed password with the provided password
-	err = bcrypt.CompareHashAndPassword([]byte(userData.User.Password), []byte(req.Password))
-	if err != nil {
-		http.Error(w, "invalid email or password", http.StatusUnauthorized)
-		return
-	}
+	util.SetRefreshTokenCookie(w, result.RefreshToken, h.cfg.JWT.JWTRefreshTokenExp, h.cfg.AppEnv == "production")
 
-	cfg := config.GetConfig()
-
-	// generate access and refresh tokens
-	accessToken, refreshToken, err := util.GenerateTokens(userData.User.Id, cfg.JWT)
-	if err != nil {
-		http.Error(w, "error creating tokens", http.StatusInternalServerError)
-		return
-	}
-
-	// save refresh token to storage
-	err = h.service.SaveRefreshToken(r.Context(), userData.User.Id, refreshToken)
-	if err != nil {
-		http.Error(w, "error saving refresh token", http.StatusInternalServerError)
-		return
-	}
-
-	// set refresh_token in httponly cookie
-	util.SetRefreshTokenCookie(w, refreshToken, cfg.JWT.JWTRefreshTokenExp, cfg.AppEnv == "production")
-
-	// return the new access token and user data
-	writeJSON(w, http.StatusOK, AuthResponse{
-		AccessToken: accessToken,
-		User: UserResponse{
-			ID:    userData.User.Id,
-			Email: userData.User.Email,
-		},
+	httpresponse.WriteJSON(w, http.StatusOK, dto.AuthResponse{
+		AccessToken: result.AccessToken,
+		User:        result.User,
 	})
 }
 
-// update the access token
 func (h *authHandler) Refresh(w http.ResponseWriter, r *http.Request) {
-	// load jwt secrets and expiration from environment variables
-	cfg := config.GetConfig()
-
-	// check if the refresh token cookie exists
 	cookie, err := r.Cookie("refresh_token")
 	if err != nil {
-		http.Error(w, "refresh token not found", http.StatusUnauthorized)
+		httpresponse.WriteError(w, "refresh token not found", http.StatusUnauthorized)
+		fmt.Printf("Refresh error: %v\n", err)
 		return
 	}
 
-	// validate the refresh token
-	claims, err := util.ValidateToken(cookie.Value, []byte(cfg.JWT.JWTRefreshTokenSecret))
+	result, err := h.service.Refresh(r.Context(), cookie.Value)
+
 	if err != nil {
-		http.Error(w, "invalid or expired refresh token", http.StatusUnauthorized)
+		switch {
+		case errors.Is(err, apperror.ErrRefreshTokenNotFound):
+			httpresponse.WriteError(w, "refresh token not found", http.StatusUnauthorized)
+		case errors.Is(err, apperror.ErrInvalidOrExpiredRefreshToken):
+			httpresponse.WriteError(w, "invalid or expired refresh token", http.StatusUnauthorized)
+		case errors.Is(err, apperror.ErrUserNotFound):
+			httpresponse.WriteError(w, "user not found", http.StatusNotFound)
+		default:
+			httpresponse.WriteError(w, "internal error", http.StatusInternalServerError)
+		}
 		return
 	}
 
-	// extract user ID from claims
-	userID := claims.Subject
-
-	// generate new access token
-	newAccessToken, err := util.GenerateToken(userID, cfg.JWT.JWTAccessTokenExp, []byte(cfg.JWT.JWTAccessTokenSecret))
-	if err != nil {
-		http.Error(w, "error generating new access token", http.StatusInternalServerError)
-		return
-	}
-
-	userData, err := h.service.GetUserByID(r.Context(), userID)
-	if err != nil {
-		http.Error(w, "user not found", http.StatusNotFound)
-		return
-	}
-
-	// return the new access token and user data
-	writeJSON(w, http.StatusOK, AuthResponse{
-		AccessToken: newAccessToken,
-		User: UserResponse{
-			ID:    userData.User.Id,
-			Email: userData.User.Email,
-		},
+	httpresponse.WriteJSON(w, http.StatusOK, dto.AuthResponse{
+		AccessToken: result.AccessToken,
+		User:        result.User,
 	})
 }
 
 func (h *authHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	cookie, err := r.Cookie("refresh_token")
 	if err == nil {
-		_ = h.service.RemoveRefreshToken(r.Context(), cookie.Value)
+		_ = h.service.Logout(r.Context(), cookie.Value)
 	}
 
-	cfg := config.GetConfig()
-
-	util.RemoveRefreshTokenCookie(w, cfg.AppEnv == "production")
+	util.RemoveRefreshTokenCookie(w, h.cfg.AppEnv == "production")
 	w.WriteHeader(http.StatusOK)
 }

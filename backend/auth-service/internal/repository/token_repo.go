@@ -15,16 +15,22 @@ type TokenRepository interface {
 }
 
 type tokenRepository struct {
-	db *pgxpool.Pool
+	db  *pgxpool.Pool
+	cfg *config.Config
 }
 
-func NewTokenRepository(db *pgxpool.Pool) TokenRepository {
-	return &tokenRepository{db: db}
+func NewTokenRepository(db *pgxpool.Pool, cfg *config.Config) TokenRepository {
+	return &tokenRepository{
+		db:  db,
+		cfg: cfg,
+	}
 }
 
 func (r *tokenRepository) SaveRefreshToken(ctx context.Context, userID string, refreshToken string) error {
-	expRefresh := config.GetConfig().JWT.JWTRefreshTokenExp
-	_, err := r.db.Exec(ctx, "INSERT INTO refresh_tokens (user_id, token, expires_at) VALUES ($1, $2, $3)", userID, refreshToken, time.Now().Add(expRefresh))
+	_, err := r.db.Exec(ctx,
+		"INSERT INTO refresh_tokens (user_id, token, expires_at) VALUES ($1, $2, $3)",
+		userID, refreshToken, time.Now().Add(r.cfg.JWT.JWTRefreshTokenExp),
+	)
 	if err != nil {
 		return fmt.Errorf("failed to save refresh token: %w", err)
 	}
