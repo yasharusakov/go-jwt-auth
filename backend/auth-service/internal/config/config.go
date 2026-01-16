@@ -35,22 +35,22 @@ type Config struct {
 }
 
 var (
-	cfg  *Config
+	cfg  Config
 	once sync.Once
 )
 
-func LoadConfigFromEnv() (*Config, error) {
+func LoadConfigFromEnv() (Config, error) {
 	accessExp, err := time.ParseDuration(os.Getenv("JWT_ACCESS_TOKEN_EXPIRATION"))
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse JWT_ACCESS_TOKEN_EXPIRATION: %w", err)
+		return Config{}, fmt.Errorf("failed to parse JWT_ACCESS_TOKEN_EXPIRATION: %w", err)
 	}
 
 	expRefresh, err := time.ParseDuration(os.Getenv("JWT_REFRESH_TOKEN_EXPIRATION"))
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse JWT_REFRESH_TOKEN_EXPIRATION: %w", err)
+		return Config{}, fmt.Errorf("failed to parse JWT_REFRESH_TOKEN_EXPIRATION: %w", err)
 	}
 
-	return &Config{
+	return Config{
 		AppEnv:              os.Getenv("APP_ENV"),
 		Port:                os.Getenv("API_AUTH_SERVICE_PORT"),
 		ApiUserServiceURL:   os.Getenv("API_USER_SERVICE_URL"),
@@ -73,7 +73,7 @@ func LoadConfigFromEnv() (*Config, error) {
 	}, err
 }
 
-func GetConfig() *Config {
+func GetConfig() Config {
 	once.Do(func() {
 		var err error
 		cfg, err = LoadConfigFromEnv()

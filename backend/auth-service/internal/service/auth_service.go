@@ -23,14 +23,14 @@ type authService struct {
 	grpcUserClient grpcClient.UserService
 	tokenRepo      repository.TokenRepository
 	tokenManager   TokenManager
-	cfg            *config.Config
+	cfg            config.Config
 }
 
 func NewAuthService(
 	grpcUserClient grpcClient.UserService,
 	tokenRepo repository.TokenRepository,
 	tokenManager TokenManager,
-	cfg *config.Config,
+	cfg config.Config,
 ) AuthService {
 	return &authService{
 		grpcUserClient: grpcUserClient,

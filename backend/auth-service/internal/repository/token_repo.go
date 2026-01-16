@@ -16,10 +16,10 @@ type TokenRepository interface {
 
 type tokenRepository struct {
 	db  *pgxpool.Pool
-	cfg *config.Config
+	cfg config.Config
 }
 
-func NewTokenRepository(db *pgxpool.Pool, cfg *config.Config) TokenRepository {
+func NewTokenRepository(db *pgxpool.Pool, cfg config.Config) TokenRepository {
 	return &tokenRepository{
 		db:  db,
 		cfg: cfg,

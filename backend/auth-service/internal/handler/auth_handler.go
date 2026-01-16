@@ -25,10 +25,10 @@ type AuthHandler interface {
 type authHandler struct {
 	service   service.AuthService
 	validator *validator.Validate
-	cfg       *config.Config
+	cfg       config.Config
 }
 
-func NewAuthHandler(service service.AuthService, cfg *config.Config) AuthHandler {
+func NewAuthHandler(service service.AuthService, cfg config.Config) AuthHandler {
 	return &authHandler{
 		service:   service,
 		validator: validator.New(),
