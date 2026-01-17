@@ -11,9 +11,13 @@ var (
 	ErrInvalidEmailOrPassword       = errors.New("invalid email or password")
 	ErrRefreshTokenNotFound         = errors.New("refresh token not found")
 	ErrInvalidOrExpiredRefreshToken = errors.New("invalid or expired refresh token")
-	ErrGeneratingAccessToken        = errors.New("error generating access token")
+
+	// Do not show to client
+	ErrGeneratingAccessToken = errors.New("error generating access token")
 
 	// User Errors
 	ErrUserAlreadyExists = errors.New("user already exists")
-	ErrUserNotFound      = errors.New("user not found")
+
+	// Do not show to client (only in refresh)
+	ErrUserNotFound = errors.New("user not found")
 )

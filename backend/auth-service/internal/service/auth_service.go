@@ -43,7 +43,7 @@ func NewAuthService(
 func (s *authService) Register(ctx context.Context, email, password string) (*dto.AuthResult, error) {
 	exists, err := s.grpcUserClient.CheckUserExistsByEmail(ctx, email)
 	if err != nil {
-		return nil, fmt.Errorf("check user existence failed: %w", err)
+		return nil, fmt.Errorf("check user existence: %w", err)
 	}
 	if exists.Exists {
 		return nil, apperror.ErrUserAlreadyExists
@@ -51,32 +51,15 @@ func (s *authService) Register(ctx context.Context, email, password string) (*dt
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
-		return nil, fmt.Errorf("password hashing failed: %w", err)
+		return nil, fmt.Errorf("hash password: %w", err)
 	}
 
 	userResp, err := s.grpcUserClient.RegisterUser(ctx, email, hashedPassword)
 	if err != nil {
-		return nil, fmt.Errorf("grpc register failed: %w", err)
+		return nil, fmt.Errorf("gRPC register: %w", err)
 	}
 
-	accessToken, refreshToken, err := s.tokenManager.GenerateTokens(userResp.Id)
-	if err != nil {
-		return nil, fmt.Errorf("token generation failed: %w", err)
-	}
-
-	err = s.tokenRepo.SaveRefreshToken(ctx, userResp.Id, refreshToken)
-	if err != nil {
-		return nil, fmt.Errorf("saving refresh token failed: %w", err)
-	}
-
-	return &dto.AuthResult{
-		AccessToken:  accessToken,
-		RefreshToken: refreshToken,
-		User: dto.UserResponse{
-			ID:    userResp.Id,
-			Email: email,
-		},
-	}, nil
+	return s.createSession(ctx, userResp.Id, email)
 }
 
 func (s *authService) Login(ctx context.Context, email, password string) (*dto.AuthResult, error) {
@@ -90,24 +73,7 @@ func (s *authService) Login(ctx context.Context, email, password string) (*dto.A
 		return nil, apperror.ErrInvalidEmailOrPassword
 	}
 
-	accessToken, refreshToken, err := s.tokenManager.GenerateTokens(userResp.User.Id)
-	if err != nil {
-		return nil, fmt.Errorf("token generation failed: %w", err)
-	}
-
-	err = s.tokenRepo.SaveRefreshToken(ctx, userResp.User.Id, refreshToken)
-	if err != nil {
-		return nil, fmt.Errorf("saving refresh token failed: %w", err)
-	}
-
-	return &dto.AuthResult{
-		AccessToken:  accessToken,
-		RefreshToken: refreshToken,
-		User: dto.UserResponse{
-			ID:    userResp.User.Id,
-			Email: email,
-		},
-	}, nil
+	return s.createSession(ctx, userResp.User.Id, email)
 }
 
 func (s *authService) Refresh(ctx context.Context, refreshToken string) (*dto.RefreshResult, error) {
@@ -117,6 +83,8 @@ func (s *authService) Refresh(ctx context.Context, refreshToken string) (*dto.Re
 	}
 
 	userID := claims.Subject
+
+	// TODO: Refresh Token Rotation can be implemented here
 
 	accessToken, err := s.tokenManager.GenerateAccessToken(userID)
 	if err != nil {
@@ -139,4 +107,25 @@ func (s *authService) Refresh(ctx context.Context, refreshToken string) (*dto.Re
 
 func (s *authService) Logout(ctx context.Context, refreshToken string) error {
 	return s.tokenRepo.RemoveRefreshToken(ctx, refreshToken)
+}
+
+func (s *authService) createSession(ctx context.Context, userID, email string) (*dto.AuthResult, error) {
+	accessToken, refreshToken, err := s.tokenManager.GenerateTokens(userID)
+	if err != nil {
+		return nil, fmt.Errorf("token generation failed: %w", err)
+	}
+
+	err = s.tokenRepo.SaveRefreshToken(ctx, userID, refreshToken)
+	if err != nil {
+		return nil, fmt.Errorf("saving refresh token failed: %w", err)
+	}
+
+	return &dto.AuthResult{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		User: dto.UserResponse{
+			ID:    userID,
+			Email: email,
+		},
+	}, nil
 }
