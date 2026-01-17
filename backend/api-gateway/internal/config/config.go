@@ -14,19 +14,23 @@ type Config struct {
 }
 
 var (
-	cfg  *Config
+	cfg  Config
 	once sync.Once
 )
 
-func GetConfig() *Config {
+func LoadConfigFromEnv() Config {
+	return Config{
+		Port:                 os.Getenv("API_GATEWAY_PORT"),
+		ClientURL:            os.Getenv("CLIENT_URL"),
+		JWTAccessTokenSecret: os.Getenv("JWT_ACCESS_TOKEN_SECRET"),
+		ApiAuthServiceURL:    os.Getenv("API_AUTH_SERVICE_URL"),
+		ApiUserServiceURL:    os.Getenv("API_USER_SERVICE_URL"),
+	}
+}
+
+func GetConfig() Config {
 	once.Do(func() {
-		cfg = &Config{
-			Port:                 os.Getenv("API_GATEWAY_PORT"),
-			ClientURL:            os.Getenv("CLIENT_URL"),
-			JWTAccessTokenSecret: os.Getenv("JWT_ACCESS_TOKEN_SECRET"),
-			ApiAuthServiceURL:    os.Getenv("API_AUTH_SERVICE_URL"),
-			ApiUserServiceURL:    os.Getenv("API_USER_SERVICE_URL"),
-		}
+		cfg = LoadConfigFromEnv()
 	})
 
 	return cfg

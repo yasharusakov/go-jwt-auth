@@ -18,31 +18,24 @@ func Run() {
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
-
-	srv := &server.HttpServer{}
-
+	
 	handlers := router.RegisterRoutes()
 
-	errChan := make(chan error, 1)
+	srv := &server.HttpServer{}
+	serverErrors := make(chan error, 1)
 
 	go func() {
 		log.Printf("HTTP server is running on port: %s", cfg.Port)
-		errChan <- srv.Run(cfg.Port, handlers)
+		serverErrors <- srv.Run(cfg.Port, handlers)
 	}()
-
-	handleRunErr := func(err error) {
-		if err != nil && !errors.Is(err, http.ErrServerClosed) {
-			log.Printf("Server error: %v", err)
-		} else {
-			log.Println("Stopped cleanly")
-		}
-	}
 
 	select {
 	case <-ctx.Done():
 		log.Println("Shutdown signal received")
-	case err := <-errChan:
-		handleRunErr(err)
+	case err := <-serverErrors:
+		if !errors.Is(err, http.ErrServerClosed) {
+			log.Fatalf("Server error: %v", err)
+		}
 		return
 	}
 
@@ -52,8 +45,7 @@ func Run() {
 	if err := srv.Shutdown(shutdownCtx); err != nil {
 		log.Printf("Server shutdown error: %v", err)
 	} else {
-		log.Println("Server shutdown gracefully")
+		log.Println("Server stopped gracefully")
 	}
 
-	handleRunErr(<-errChan)
 }
