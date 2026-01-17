@@ -27,23 +27,6 @@ func Run() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	// ========== NATS CONNECTION ==========
-	// nc, err := broker.NewNATS(&cfg.NATS, "user-service")
-	// if err != nil {
-	//	 log.Fatal("Error occurred while connecting to NATS: ", err)
-	// }
-	//
-	// defer func() {
-	//	 log.Println("Draining NATS connection...")
-	//	 if drainErr := nc.Drain(); drainErr != nil {
-	//		 log.Printf("Error draining NATS connection: %v", err)
-	//	 }
-	// }()
-	// ========== NATS END OF CONNECTION ==========
-
-	httpServer := &server.HttpServer{}
-	grpcServer := &server.GRPCServer{}
-
 	postgres, err := storage.NewPostgres(ctx, cfg.Postgres)
 	if err != nil {
 		log.Fatal("Error occurred while initializing postgres: ", err)
@@ -58,61 +41,51 @@ func Run() {
 
 	httpHandlers := httpHandler.NewUserHandler(services)
 	grpcHandlers := grpcHandler.NewUserHandler(services)
-
-	// HTTP
 	routes := router.RegisterRoutes(httpHandlers)
 
+	httpServer := &server.HttpServer{}
+	grpcServer := &server.GRPCServer{}
+
 	var wg sync.WaitGroup
-	errChan := make(chan error, 2)
+	serverErrors := make(chan error, 2)
 
-	// ========== NATS HANDLERS ==========
-	// natsHandler := nats.NewNATSHandler(services.User, nc)
-	// natsHandler.Register()
-	// log.Println("NATS handlers registered")
-	// ========== END NATS HANDLERS ==========
-
-	// Start gRPC server
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		log.Printf("gRPC server is running on port: %s", cfg.GRPCUserServicePort)
 
 		if runErr := grpcServer.Run(cfg.GRPCUserServicePort, grpcHandlers); runErr != nil && !errors.Is(runErr, grpc.ErrServerStopped) {
-			errChan <- runErr
+			serverErrors <- runErr
 		}
 	}()
 
-	// Start HTTP server
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		log.Printf("HTTP server is running on port: %s", cfg.Port)
 
 		if runErr := httpServer.Run(cfg.Port, routes); runErr != nil && !errors.Is(runErr, http.ErrServerClosed) {
-			errChan <- runErr
+			serverErrors <- runErr
 		}
 	}()
 
 	select {
 	case <-ctx.Done():
 		log.Println("Shutdown signal received")
-	case err = <-errChan:
+	case err = <-serverErrors:
 		log.Printf("Server error: %v", err)
 		stop()
 	}
 
-	// Graceful shutdown
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	// HTTP shutdown
 	if err := httpServer.Shutdown(shutdownCtx); err != nil {
 		log.Printf("HTTP server shutdown error: %v", err)
 	} else {
 		log.Println("HTTP server shutdown gracefully")
 	}
 
-	// gRPC shutdown
 	grpcServer.Shutdown(shutdownCtx)
 
 	wg.Wait()

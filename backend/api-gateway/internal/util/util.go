@@ -7,7 +7,7 @@ import (
 )
 
 func ValidateToken(tokenStr string, secret []byte) (*jwt.RegisteredClaims, error) {
-	token, err := jwt.ParseWithClaims(tokenStr, &jwt.RegisteredClaims{}, func(token *jwt.Token) (interface{}, error) {
+	token, err := jwt.ParseWithClaims(tokenStr, &jwt.RegisteredClaims{}, func(token *jwt.Token) (any, error) {
 		return secret, nil
 	})
 

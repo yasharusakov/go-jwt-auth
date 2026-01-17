@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/go-playground/validator/v10"
@@ -25,10 +26,10 @@ type AuthHandler interface {
 type authHandler struct {
 	service   service.AuthService
 	validator *validator.Validate
-	cfg       *config.Config
+	cfg       config.Config
 }
 
-func NewAuthHandler(service service.AuthService, cfg *config.Config) AuthHandler {
+func NewAuthHandler(service service.AuthService, cfg config.Config) AuthHandler {
 	return &authHandler{
 		service:   service,
 		validator: validator.New(),
@@ -50,22 +51,37 @@ func (h *authHandler) decodeAndValidate(r *http.Request, dst any) error {
 	return nil
 }
 
+func (h *authHandler) respondWithError(err error, w http.ResponseWriter) {
+	switch {
+	case errors.Is(err, apperror.ErrUserAlreadyExists):
+		httpresponse.WriteError(w, "user already exists", http.StatusConflict)
+	case errors.Is(err, apperror.ErrInvalidEmailOrPassword):
+		httpresponse.WriteError(w, "invalid email or password", http.StatusUnauthorized)
+	case errors.Is(err, apperror.ErrRefreshTokenNotFound):
+		httpresponse.WriteError(w, "refresh token not found", http.StatusUnauthorized)
+	case errors.Is(err, apperror.ErrInvalidOrExpiredRefreshToken):
+		httpresponse.WriteError(w, "invalid or expired refresh token", http.StatusUnauthorized)
+	case errors.Is(err, apperror.ErrUserNotFound):
+		httpresponse.WriteError(w, "user not found", http.StatusUnauthorized)
+	case errors.Is(err, apperror.ErrValidationFailed), errors.Is(err, apperror.ErrInvalidRequestBody):
+		httpresponse.WriteError(w, err.Error(), http.StatusBadRequest)
+	default:
+		log.Printf("INTERNAL SERVER ERROR: %v", err)
+		httpresponse.WriteError(w, "internal server error", http.StatusInternalServerError)
+	}
+}
+
 func (h *authHandler) Register(w http.ResponseWriter, r *http.Request) {
 	var req dto.RegisterRequest
 	if err := h.decodeAndValidate(r, &req); err != nil {
-		httpresponse.WriteError(w, err.Error(), http.StatusBadRequest)
+		h.respondWithError(err, w)
 		return
 	}
 
 	result, err := h.service.Register(r.Context(), req.Email, req.Password)
 
 	if err != nil {
-		switch {
-		case errors.Is(err, apperror.ErrUserAlreadyExists):
-			httpresponse.WriteError(w, "user already exists", http.StatusConflict)
-		default:
-			httpresponse.WriteError(w, "internal error", http.StatusInternalServerError)
-		}
+		h.respondWithError(err, w)
 		return
 	}
 
@@ -80,19 +96,14 @@ func (h *authHandler) Register(w http.ResponseWriter, r *http.Request) {
 func (h *authHandler) Login(w http.ResponseWriter, r *http.Request) {
 	var req dto.LoginRequest
 	if err := h.decodeAndValidate(r, &req); err != nil {
-		httpresponse.WriteError(w, err.Error(), http.StatusBadRequest)
+		h.respondWithError(err, w)
 		return
 	}
 
 	result, err := h.service.Login(r.Context(), req.Email, req.Password)
 
 	if err != nil {
-		switch {
-		case errors.Is(err, apperror.ErrInvalidEmailOrPassword):
-			httpresponse.WriteError(w, "invalid email or password", http.StatusUnauthorized)
-		default:
-			httpresponse.WriteError(w, "internal error", http.StatusInternalServerError)
-		}
+		h.respondWithError(err, w)
 		return
 	}
 
@@ -108,23 +119,13 @@ func (h *authHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 	cookie, err := r.Cookie("refresh_token")
 	if err != nil {
 		httpresponse.WriteError(w, "refresh token not found", http.StatusUnauthorized)
-		fmt.Printf("Refresh error: %v\n", err)
 		return
 	}
 
 	result, err := h.service.Refresh(r.Context(), cookie.Value)
 
 	if err != nil {
-		switch {
-		case errors.Is(err, apperror.ErrRefreshTokenNotFound):
-			httpresponse.WriteError(w, "refresh token not found", http.StatusUnauthorized)
-		case errors.Is(err, apperror.ErrInvalidOrExpiredRefreshToken):
-			httpresponse.WriteError(w, "invalid or expired refresh token", http.StatusUnauthorized)
-		case errors.Is(err, apperror.ErrUserNotFound):
-			httpresponse.WriteError(w, "user not found", http.StatusNotFound)
-		default:
-			httpresponse.WriteError(w, "internal error", http.StatusInternalServerError)
-		}
+		h.respondWithError(err, w)
 		return
 	}
 
