@@ -14,6 +14,7 @@ var (
 
 	// Do not show to client
 	ErrGeneratingAccessToken = errors.New("error generating access token")
+	ErrGeneratingTokens      = errors.New("error generating tokens")
 
 	// User Errors
 	ErrUserAlreadyExists = errors.New("user already exists")

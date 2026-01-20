@@ -82,13 +82,30 @@ func (s *authService) Refresh(ctx context.Context, refreshToken string) (*dto.Re
 		return nil, fmt.Errorf("%w: %w", apperror.ErrInvalidOrExpiredRefreshToken, err)
 	}
 
+	isExists, err := s.tokenRepo.IsRefreshTokenExists(ctx, refreshToken)
+	if err != nil {
+		return nil, fmt.Errorf("checking refresh token existence: %w", err)
+	}
+
+	if !isExists {
+		return nil, apperror.ErrInvalidOrExpiredRefreshToken
+	}
+
 	userID := claims.Subject
 
-	// TODO: Refresh Token Rotation can be implemented here
-
-	accessToken, err := s.tokenManager.GenerateAccessToken(userID)
+	err = s.tokenRepo.RemoveRefreshToken(ctx, refreshToken)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %w", apperror.ErrGeneratingAccessToken, err)
+		return nil, fmt.Errorf("removing old refresh token failed: %w", err)
+	}
+
+	accessToken, refreshToken, err := s.tokenManager.GenerateTokens(userID)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", apperror.ErrGeneratingTokens, err)
+	}
+
+	err = s.tokenRepo.SaveRefreshToken(ctx, userID, refreshToken)
+	if err != nil {
+		return nil, fmt.Errorf("saving refresh token failed: %w", err)
 	}
 
 	userData, err := s.grpcUserClient.GetUserByID(ctx, userID)
@@ -97,7 +114,8 @@ func (s *authService) Refresh(ctx context.Context, refreshToken string) (*dto.Re
 	}
 
 	return &dto.RefreshResult{
-		AccessToken: accessToken,
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
 		User: dto.UserResponse{
 			ID:    userData.User.Id,
 			Email: userData.User.Email,

@@ -27,8 +27,9 @@ type AuthResult struct {
 }
 
 type RefreshResult struct {
-	AccessToken string
-	User        UserResponse
+	AccessToken  string
+	RefreshToken string
+	User         UserResponse
 }
 
 type ErrorResponse struct {
