@@ -19,7 +19,7 @@ func Run() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	handlers := router.RegisterRoutes()
+	handlers := router.RegisterRoutes(cfg)
 
 	srv := &server.HttpServer{}
 	serverErrors := make(chan error, 1)
