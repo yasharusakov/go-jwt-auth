@@ -46,7 +46,7 @@ func Run() {
 	tokenManager := service.NewTokenManager(cfg.JWT)
 	authService := service.NewAuthService(grpcUserClient, tokenRepo, tokenManager, cfg)
 	authHandler := handler.NewAuthHandler(authService, cfg)
-	routes := router.RegisterRoutes(authHandler)
+	routes := router.RegisterRoutes(authHandler, postgres, grpcUserClient)
 
 	httpServer := &server.HttpServer{}
 	serverErrors := make(chan error, 1)

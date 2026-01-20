@@ -41,7 +41,7 @@ func Run() {
 
 	httpHandlers := httpHandler.NewUserHandler(services)
 	grpcHandlers := grpcHandler.NewUserHandler(services)
-	routes := router.RegisterRoutes(httpHandlers)
+	routes := router.RegisterRoutes(httpHandlers, postgres)
 
 	httpServer := &server.HttpServer{}
 	grpcServer := &server.GRPCServer{}

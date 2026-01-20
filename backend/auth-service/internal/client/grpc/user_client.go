@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
@@ -14,6 +15,7 @@ type UserService interface {
 	GetUserByID(ctx context.Context, id string) (*userpb.GetUserByIDResponse, error)
 	CheckUserExistsByEmail(ctx context.Context, email string) (*userpb.CheckUserExistsByEmailResponse, error)
 	RegisterUser(ctx context.Context, email string, hashedPassword []byte) (*userpb.RegisterUserResponse, error)
+	Ping(ctx context.Context) error
 }
 
 type UserClient struct {
@@ -33,6 +35,14 @@ func NewGRPCUserClient(addr string) (*UserClient, error) {
 		client: c,
 		conn:   conn,
 	}, nil
+}
+
+func (u *UserClient) Ping(ctx context.Context) error {
+	state := u.conn.GetState()
+	if state != connectivity.Ready && state != connectivity.Idle {
+		return fmt.Errorf("grpc connection is not ready: %s", state.String())
+	}
+	return nil
 }
 
 func (u *UserClient) Close() {

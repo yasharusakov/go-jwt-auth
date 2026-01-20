@@ -22,8 +22,7 @@ func newProxy(target string) *httputil.ReverseProxy {
 	return httputil.NewSingleHostReverseProxy(parsedURL)
 }
 
-func RegisterRoutes() *http.ServeMux {
-	cfg := config.GetConfig()
+func RegisterRoutes(cfg config.Config) *http.ServeMux {
 	mux := http.NewServeMux()
 
 	authProxy := newProxy(cfg.ApiAuthServiceInternalURL)
@@ -41,7 +40,7 @@ func RegisterRoutes() *http.ServeMux {
 		check := func(target string) error {
 			baseURL := strings.TrimSuffix(target, "/api")
 
-			req, err := http.NewRequestWithContext(ctx, "GET", baseURL+"/health", nil)
+			req, err := http.NewRequestWithContext(ctx, "GET", baseURL+"/ready", nil)
 			if err != nil {
 				return fmt.Errorf("failed to create request for %s: %w", baseURL, err)
 			}
@@ -59,13 +58,13 @@ func RegisterRoutes() *http.ServeMux {
 			return nil
 		}
 
-		// Check auth-service health
+		// Check auth service readiness
 		if err := check(cfg.ApiAuthServiceInternalURL); err != nil {
 			http.Error(w, err.Error(), http.StatusServiceUnavailable)
 			return
 		}
 
-		// Check user-service health
+		// Check user service readiness
 		if err := check(cfg.ApiUserServiceInternalURL); err != nil {
 			http.Error(w, err.Error(), http.StatusServiceUnavailable)
 			return
