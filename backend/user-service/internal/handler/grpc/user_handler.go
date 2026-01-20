@@ -2,7 +2,7 @@ package grpcHandler
 
 import (
 	"context"
-	userpb "user-service/internal/genproto/user"
+	userpb "user-service/internal/genproto/user/v1"
 	"user-service/internal/service"
 )
 

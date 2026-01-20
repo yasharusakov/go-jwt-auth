@@ -1,7 +1,7 @@
 package grpcClient
 
 import (
-	userpb "auth-service/internal/genproto/user"
+	userpb "auth-service/internal/genproto/user/v1"
 	"context"
 	"fmt"
 

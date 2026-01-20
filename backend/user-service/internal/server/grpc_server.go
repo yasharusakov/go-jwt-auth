@@ -3,7 +3,7 @@ package server
 import (
 	"context"
 	"net"
-	userpb "user-service/internal/genproto/user"
+	userpb "user-service/internal/genproto/user/v1"
 	grpcHandler "user-service/internal/handler/grpc"
 
 	"google.golang.org/grpc"
