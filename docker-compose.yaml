@@ -1,8 +1,10 @@
 services:
   postgres-auth:
+    expose:
+      - "${DB_AUTH_POSTGRES_INTERNAL_PORT}"
     image: postgres:alpine
-    ports:
-      - "${DB_AUTH_POSTGRES_EXTERNAL_PORT}:${DB_AUTH_POSTGRES_INTERNAL_PORT}"
+    #    ports:
+    #      - "${DB_AUTH_POSTGRES_EXTERNAL_PORT}:${DB_AUTH_POSTGRES_INTERNAL_PORT}"
     env_file:
       - .env
     environment:
@@ -39,9 +41,11 @@ services:
     restart: on-failure
 
   postgres-user:
+    expose:
+      - "${DB_USER_POSTGRES_INTERNAL_PORT}"
     image: postgres:alpine
-    ports:
-      - "${DB_USER_POSTGRES_EXTERNAL_PORT}:${DB_USER_POSTGRES_INTERNAL_PORT}"
+#    ports:
+#      - "${DB_USER_POSTGRES_EXTERNAL_PORT}:${DB_USER_POSTGRES_INTERNAL_PORT}"
     env_file:
       - .env
     environment:
@@ -93,14 +97,16 @@ services:
       - user-service
 
   auth-service:
+    expose:
+      - "${API_AUTH_SERVICE_INTERNAL_PORT}"
     build:
       context: "./backend/auth-service"
       args:
         APP_PORT: ${API_AUTH_SERVICE_INTERNAL_PORT}
     env_file:
       - .env
-    ports:
-      - "${API_AUTH_SERVICE_EXTERNAL_PORT}:${API_AUTH_SERVICE_INTERNAL_PORT}"
+    #    ports:
+    #      - "${API_AUTH_SERVICE_EXTERNAL_PORT}:${API_AUTH_SERVICE_INTERNAL_PORT}"
     depends_on:
       migrator-auth:
         condition: service_completed_successfully
@@ -109,14 +115,16 @@ services:
     restart: always
 
   user-service:
+    expose:
+      - "${API_USER_SERVICE_INTERNAL_PORT}"
     build:
       context: "./backend/user-service"
       args:
         APP_PORT: ${API_USER_SERVICE_INTERNAL_PORT}
     env_file:
       - .env
-    ports:
-      - "${API_USER_SERVICE_EXTERNAL_PORT}:${API_USER_SERVICE_INTERNAL_PORT}"
+    #    ports:
+    #      - "${API_USER_SERVICE_EXTERNAL_PORT}:${API_USER_SERVICE_INTERNAL_PORT}"
     depends_on:
       migrator-user:
         condition: service_completed_successfully
