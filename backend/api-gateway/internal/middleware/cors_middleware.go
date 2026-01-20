@@ -6,7 +6,7 @@ import (
 )
 
 func CORSMiddleware(next http.HandlerFunc) http.HandlerFunc {
-	clientURL := config.GetConfig().ClientURL
+	clientURL := config.GetConfig().ClientExternalURL
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", clientURL)
 		w.Header().Set("Access-Control-Allow-Credentials", "true")

@@ -25,13 +25,13 @@ type JWTConfig struct {
 }
 
 type Config struct {
-	AppEnv              string
-	Port                string
-	ApiUserServiceURL   string
-	GRPCUserServicePort string
-	GRPCUserServiceURL  string
-	Postgres            PostgresConfig
-	JWT                 JWTConfig
+	AppEnv                      string
+	ApiAuthServiceInternalPort  string
+	ApiUserServiceInternalURL   string
+	GRPCUserServiceInternalPort string
+	GRPCUserServiceInternalURL  string
+	Postgres                    PostgresConfig
+	JWT                         JWTConfig
 }
 
 var (
@@ -51,11 +51,11 @@ func LoadConfigFromEnv() (Config, error) {
 	}
 
 	return Config{
-		AppEnv:              os.Getenv("APP_ENV"),
-		Port:                os.Getenv("API_AUTH_SERVICE_PORT"),
-		ApiUserServiceURL:   os.Getenv("API_USER_SERVICE_URL"),
-		GRPCUserServicePort: os.Getenv("GRPC_USER_SERVICE_PORT"),
-		GRPCUserServiceURL:  os.Getenv("GRPC_USER_SERVICE_URL"),
+		AppEnv:                      os.Getenv("APP_ENV"),
+		ApiAuthServiceInternalPort:  os.Getenv("API_AUTH_SERVICE_INTERNAL_PORT"),
+		ApiUserServiceInternalURL:   os.Getenv("API_USER_SERVICE_INTERNAL_URL"),
+		GRPCUserServiceInternalPort: os.Getenv("GRPC_USER_SERVICE_INTERNAL_PORT"),
+		GRPCUserServiceInternalURL:  os.Getenv("GRPC_USER_SERVICE_INTERNAL_URL"),
 		Postgres: PostgresConfig{
 			PostgresUser:     os.Getenv("DB_AUTH_POSTGRES_USER"),
 			PostgresPassword: os.Getenv("DB_AUTH_POSTGRES_PASSWORD"),

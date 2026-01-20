@@ -15,9 +15,9 @@ type PostgresConfig struct {
 }
 
 type Config struct {
-	Port                string
-	GRPCUserServicePort string
-	Postgres            PostgresConfig
+	ApiUserServiceInternalPort  string
+	GRPCUserServiceInternalPort string
+	Postgres                    PostgresConfig
 }
 
 var (
@@ -27,8 +27,8 @@ var (
 
 func LoadConfigFromEnv() Config {
 	return Config{
-		Port:                os.Getenv("API_USER_SERVICE_PORT"),
-		GRPCUserServicePort: os.Getenv("GRPC_USER_SERVICE_PORT"),
+		ApiUserServiceInternalPort:  os.Getenv("API_USER_SERVICE_INTERNAL_PORT"),
+		GRPCUserServiceInternalPort: os.Getenv("GRPC_USER_SERVICE_INTERNAL_PORT"),
 		Postgres: PostgresConfig{
 			PostgresUser:     os.Getenv("DB_USER_POSTGRES_USER"),
 			PostgresPassword: os.Getenv("DB_USER_POSTGRES_PASSWORD"),

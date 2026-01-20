@@ -22,8 +22,8 @@ func RegisterRoutes() *http.ServeMux {
 	cfg := config.GetConfig()
 	mux := http.NewServeMux()
 
-	authProxy := newProxy(cfg.ApiAuthServiceURL)
-	userProxy := newProxy(cfg.ApiUserServiceURL)
+	authProxy := newProxy(cfg.ApiAuthServiceInternalURL)
+	userProxy := newProxy(cfg.ApiUserServiceInternalURL)
 
 	mux.Handle("/api/auth/", middleware.CORSMiddleware(
 		http.StripPrefix("/api/", authProxy).ServeHTTP,

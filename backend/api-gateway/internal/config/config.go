@@ -6,11 +6,11 @@ import (
 )
 
 type Config struct {
-	Port                 string
-	ClientURL            string
-	JWTAccessTokenSecret string
-	ApiAuthServiceURL    string
-	ApiUserServiceURL    string
+	ApiGatewayExternalPort    string
+	ClientExternalURL         string
+	ApiAuthServiceInternalURL string
+	ApiUserServiceInternalURL string
+	JWTAccessTokenSecret      string
 }
 
 var (
@@ -20,11 +20,11 @@ var (
 
 func LoadConfigFromEnv() Config {
 	return Config{
-		Port:                 os.Getenv("API_GATEWAY_PORT"),
-		ClientURL:            os.Getenv("CLIENT_URL"),
-		JWTAccessTokenSecret: os.Getenv("JWT_ACCESS_TOKEN_SECRET"),
-		ApiAuthServiceURL:    os.Getenv("API_AUTH_SERVICE_URL"),
-		ApiUserServiceURL:    os.Getenv("API_USER_SERVICE_URL"),
+		ApiGatewayExternalPort:    os.Getenv("API_GATEWAY_EXTERNAL_PORT"),
+		ClientExternalURL:         os.Getenv("CLIENT_EXTERNAL_URL"),
+		ApiAuthServiceInternalURL: os.Getenv("API_AUTH_SERVICE_INTERNAL_URL"),
+		ApiUserServiceInternalURL: os.Getenv("API_USER_SERVICE_INTERNAL_URL"),
+		JWTAccessTokenSecret:      os.Getenv("JWT_ACCESS_TOKEN_SECRET"),
 	}
 }
 

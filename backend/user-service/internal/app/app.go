@@ -52,9 +52,9 @@ func Run() {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		log.Printf("gRPC server is running on port: %s", cfg.GRPCUserServicePort)
+		log.Printf("gRPC server is running on port: %s", cfg.GRPCUserServiceInternalPort)
 
-		if runErr := grpcServer.Run(cfg.GRPCUserServicePort, grpcHandlers); runErr != nil && !errors.Is(runErr, grpc.ErrServerStopped) {
+		if runErr := grpcServer.Run(cfg.GRPCUserServiceInternalPort, grpcHandlers); runErr != nil && !errors.Is(runErr, grpc.ErrServerStopped) {
 			serverErrors <- runErr
 		}
 	}()
@@ -62,9 +62,9 @@ func Run() {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		log.Printf("HTTP server is running on port: %s", cfg.Port)
+		log.Printf("HTTP server is running on port: %s", cfg.ApiUserServiceInternalPort)
 
-		if runErr := httpServer.Run(cfg.Port, routes); runErr != nil && !errors.Is(runErr, http.ErrServerClosed) {
+		if runErr := httpServer.Run(cfg.ApiUserServiceInternalPort, routes); runErr != nil && !errors.Is(runErr, http.ErrServerClosed) {
 			serverErrors <- runErr
 		}
 	}()
