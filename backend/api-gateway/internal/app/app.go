@@ -18,15 +18,15 @@ func Run() {
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
-	
+
 	handlers := router.RegisterRoutes()
 
 	srv := &server.HttpServer{}
 	serverErrors := make(chan error, 1)
 
 	go func() {
-		log.Printf("HTTP server is running on port: %s", cfg.Port)
-		serverErrors <- srv.Run(cfg.Port, handlers)
+		log.Printf("HTTP server is running on port: %s", cfg.ApiGatewayExternalPort)
+		serverErrors <- srv.Run(cfg.ApiGatewayExternalPort, handlers)
 	}()
 
 	select {

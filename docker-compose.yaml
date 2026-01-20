@@ -1,25 +1,8 @@
 services:
-  #  nats:
-  #    image: nats:latest
-  #    ports:
-  #      - "4222:4222"
-  #      - "8222:8222"
-  #    command: [
-  #      "--user", "${NATS_USER}",
-  #      "--pass", "${NATS_PASSWORD}",
-  #      "-js",
-  #      "-m", "8222"
-  #    ]
-  #    env_file:
-  #      - .env
-  #    networks:
-  #      - app_network
-  #    restart: always
-
   postgres-auth:
     image: postgres:alpine
     ports:
-      - "${DB_AUTH_POSTGRES_EXTERNAL_PORT}:5432"
+      - "${DB_AUTH_POSTGRES_EXTERNAL_PORT}:${DB_AUTH_POSTGRES_INTERNAL_PORT}"
     env_file:
       - .env
     environment:
@@ -37,7 +20,6 @@ services:
       timeout: 2s
       retries: 20
 
-  # run automated migrations for postgres-auth
   migrator-auth:
     image: migrate/migrate
     container_name: migrator-auth
@@ -59,7 +41,7 @@ services:
   postgres-user:
     image: postgres:alpine
     ports:
-      - "${DB_USER_POSTGRES_EXTERNAL_PORT}:5432"
+      - "${DB_USER_POSTGRES_EXTERNAL_PORT}:${DB_USER_POSTGRES_INTERNAL_PORT}"
     env_file:
       - .env
     environment:
@@ -77,7 +59,6 @@ services:
       timeout: 2s
       retries: 20
 
-  # run automated migrations for postgres-user
   migrator-user:
     image: migrate/migrate
     container_name: migrator-user
@@ -99,29 +80,28 @@ services:
   api-gateway:
     build:
       context: "./backend/api-gateway"
+      args:
+        APP_PORT: ${API_GATEWAY_INTERNAL_PORT}
     env_file:
       - .env
     ports:
-      - "${API_GATEWAY_PORT}:8080"
+      - "${API_GATEWAY_EXTERNAL_PORT}:${API_GATEWAY_INTERNAL_PORT}"
     networks:
       - app_network
     depends_on:
-      #      - nats
       - auth-service
       - user-service
 
   auth-service:
     build:
       context: "./backend/auth-service"
+      args:
+        APP_PORT: ${API_AUTH_SERVICE_INTERNAL_PORT}
     env_file:
       - .env
     ports:
-      - "${API_AUTH_SERVICE_PORT}:8081"
+      - "${API_AUTH_SERVICE_EXTERNAL_PORT}:${API_AUTH_SERVICE_INTERNAL_PORT}"
     depends_on:
-      #      nats:
-      #        condition: service_started
-#      postgres-user:
-#        condition: service_healthy
       migrator-auth:
         condition: service_completed_successfully
     networks:
@@ -131,17 +111,15 @@ services:
   user-service:
     build:
       context: "./backend/user-service"
+      args:
+        APP_PORT: ${API_USER_SERVICE_INTERNAL_PORT}
     env_file:
       - .env
     ports:
-      - "${API_USER_SERVICE_PORT}:8082"
+      - "${API_USER_SERVICE_EXTERNAL_PORT}:${API_USER_SERVICE_INTERNAL_PORT}"
     depends_on:
-      #      nats:
-      #        condition: service_started
-#      postgres-user:
-#        condition: service_healthy
       migrator-user:
-          condition: service_completed_successfully
+        condition: service_completed_successfully
     networks:
       - app_network
     restart: always
@@ -152,15 +130,15 @@ services:
     build:
       context: ./frontend
       args:
-        VITE_API_URL: ${API_GATEWAY_LOCAL_URL}
+        VITE_API_URL: ${API_GATEWAY_EXTERNAL_URL}
+        APP_PORT: ${CLIENT_INTERNAL_PORT}
     ports:
-      - "${CLIENT_PORT}:80"
+      - "${CLIENT_EXTERNAL_PORT}:${CLIENT_INTERNAL_PORT}"
     depends_on:
       - api-gateway
     networks:
       - app_network
     restart: always
-
 
 networks:
   app_network:

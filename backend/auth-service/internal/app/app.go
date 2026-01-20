@@ -33,7 +33,7 @@ func Run() {
 		postgres.Close()
 	}()
 
-	grpcUserClient, err := grpcClient.NewGRPCUserClient(cfg.GRPCUserServiceURL)
+	grpcUserClient, err := grpcClient.NewGRPCUserClient(cfg.GRPCUserServiceInternalURL)
 	if err != nil {
 		log.Fatal("Failed to create gRPC user client: ", err)
 	}
@@ -52,8 +52,8 @@ func Run() {
 	serverErrors := make(chan error, 1)
 
 	go func() {
-		log.Printf("HTTP server is running on port: %s", cfg.Port)
-		serverErrors <- httpServer.Run(cfg.Port, routes)
+		log.Printf("HTTP server is running on port: %s", cfg.ApiAuthServiceInternalPort)
+		serverErrors <- httpServer.Run(cfg.ApiAuthServiceInternalPort, routes)
 	}()
 
 	select {
