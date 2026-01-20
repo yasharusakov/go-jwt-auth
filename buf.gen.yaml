@@ -1,0 +1,23 @@
+version: v2
+plugins:
+  # auth-service
+  # 1. Generating Go structures
+  - local: protoc-gen-go
+    out: backend/auth-service/internal/genproto
+    opt: paths=source_relative
+
+  # 2. Generating gRPC client/server
+  - local: protoc-gen-go-grpc
+    out: backend/auth-service/internal/genproto
+    opt: paths=source_relative
+
+  # user-service
+  # 1. Generating Go structures
+  - local: protoc-gen-go
+    out: backend/user-service/internal/genproto
+    opt: paths=source_relative
+
+  # 2. Generating gRPC client/server
+  - local: protoc-gen-go-grpc
+    out: backend/user-service/internal/genproto
+    opt: paths=source_relative
