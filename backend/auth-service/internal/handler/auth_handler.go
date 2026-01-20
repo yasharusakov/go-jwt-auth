@@ -129,6 +129,8 @@ func (h *authHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	util.SetRefreshTokenCookie(w, result.RefreshToken, h.cfg.JWT.JWTRefreshTokenExp, h.cfg.AppEnv == "production")
+
 	httpresponse.WriteJSON(w, http.StatusOK, dto.AuthResponse{
 		AccessToken: result.AccessToken,
 		User:        result.User,

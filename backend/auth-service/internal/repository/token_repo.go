@@ -12,6 +12,7 @@ import (
 type TokenRepository interface {
 	SaveRefreshToken(ctx context.Context, userID string, refreshToken string) error
 	RemoveRefreshToken(ctx context.Context, refreshToken string) error
+	IsRefreshTokenExists(ctx context.Context, refreshToken string) (bool, error)
 }
 
 type tokenRepository struct {
@@ -43,4 +44,16 @@ func (r *tokenRepository) RemoveRefreshToken(ctx context.Context, refreshToken s
 		return fmt.Errorf("failed to remove refresh token: %w", err)
 	}
 	return nil
+}
+
+func (r *tokenRepository) IsRefreshTokenExists(ctx context.Context, refreshToken string) (bool, error) {
+	var exists bool
+	err := r.db.QueryRow(ctx,
+		"SELECT EXISTS(SELECT 1 FROM refresh_tokens WHERE token = $1)",
+		refreshToken,
+	).Scan(&exists)
+	if err != nil {
+		return false, fmt.Errorf("failed to check refresh token existence: %w", err)
+	}
+	return exists, nil
 }
