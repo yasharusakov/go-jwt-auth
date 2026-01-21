@@ -3,7 +3,6 @@ package app
 import (
 	"context"
 	"errors"
-	"log"
 	"net/http"
 	"os/signal"
 	"sync"
@@ -12,6 +11,7 @@ import (
 	"user-service/internal/config"
 	grpcHandler "user-service/internal/handler/grpc"
 	httpHandler "user-service/internal/handler/http"
+	"user-service/internal/logger"
 	"user-service/internal/repository"
 	"user-service/internal/router"
 	"user-service/internal/server"
@@ -23,16 +23,20 @@ import (
 
 func Run() {
 	cfg := config.GetConfig()
+	logger.Init(cfg.AppEnv)
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
 	postgres, err := storage.NewPostgres(ctx, cfg.Postgres)
 	if err != nil {
-		log.Fatal("Error occurred while initializing postgres: ", err)
+		logger.Log.Fatal().
+			Err(err).
+			Msg("Error occurred while initializing postgres")
 	}
 	defer func() {
-		log.Println("Closing postgres connection...")
+		logger.Log.Info().
+			Msg("Closing postgres connection...")
 		postgres.Close()
 	}()
 
@@ -52,7 +56,9 @@ func Run() {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		log.Printf("gRPC server is running on port: %s", cfg.GRPCUserServiceInternalPort)
+		logger.Log.Info().
+			Str("port", cfg.GRPCUserServiceInternalPort).
+			Msg("Starting gRPC server...")
 
 		if runErr := grpcServer.Run(cfg.GRPCUserServiceInternalPort, grpcHandlers); runErr != nil && !errors.Is(runErr, grpc.ErrServerStopped) {
 			serverErrors <- runErr
@@ -62,7 +68,9 @@ func Run() {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		log.Printf("HTTP server is running on port: %s", cfg.ApiUserServiceInternalPort)
+		logger.Log.Info().
+			Str("port", cfg.ApiUserServiceInternalPort).
+			Msg("Starting HTTP server...")
 
 		if runErr := httpServer.Run(cfg.ApiUserServiceInternalPort, routes); runErr != nil && !errors.Is(runErr, http.ErrServerClosed) {
 			serverErrors <- runErr
@@ -71,19 +79,19 @@ func Run() {
 
 	select {
 	case <-ctx.Done():
-		log.Println("Shutdown signal received")
+		logger.Log.Info().Msg("Shutdown signal received")
 	case err = <-serverErrors:
-		log.Printf("Server error: %v", err)
+		logger.Log.Error().Err(err).Msg("Server error received")
 		stop()
 	}
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	if err := httpServer.Shutdown(shutdownCtx); err != nil {
-		log.Printf("HTTP server shutdown error: %v", err)
+	if err = httpServer.Shutdown(shutdownCtx); err != nil {
+		logger.Log.Info().Err(err).Msg("HTTP server shutdown error")
 	} else {
-		log.Println("HTTP server shutdown gracefully")
+		logger.Log.Info().Msg("HTTP server shutdown gracefully")
 	}
 
 	grpcServer.Shutdown(shutdownCtx)

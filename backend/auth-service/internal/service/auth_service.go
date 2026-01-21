@@ -10,6 +10,8 @@ import (
 	"fmt"
 
 	"golang.org/x/crypto/bcrypt"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type AuthService interface {
@@ -65,7 +67,10 @@ func (s *authService) Register(ctx context.Context, email, password string) (*dt
 func (s *authService) Login(ctx context.Context, email, password string) (*dto.AuthResult, error) {
 	userResp, err := s.grpcUserClient.GetUserByEmail(ctx, email)
 	if err != nil {
-		return nil, apperror.ErrInvalidEmailOrPassword
+		if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
+			return nil, apperror.ErrInvalidEmailOrPassword
+		}
+		return nil, fmt.Errorf("get user by email: %w", err)
 	}
 
 	err = bcrypt.CompareHashAndPassword([]byte(userResp.User.Password), []byte(password))

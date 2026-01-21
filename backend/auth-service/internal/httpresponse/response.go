@@ -2,15 +2,17 @@ package httpresponse
 
 import (
 	"auth-service/internal/dto"
+	"auth-service/internal/logger"
 	"encoding/json"
-	"log"
 	"net/http"
 )
 
 func WriteJSON(w http.ResponseWriter, status int, data any) {
 	js, err := json.Marshal(data)
 	if err != nil {
-		log.Printf("error encoding response: %v", err)
+		logger.Log.Error().
+			Err(err).
+			Msg("error encoding response")
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}

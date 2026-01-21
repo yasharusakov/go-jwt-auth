@@ -2,10 +2,10 @@ package router
 
 import (
 	"api-gateway/internal/config"
+	"api-gateway/internal/logger"
 	"api-gateway/internal/middleware"
 	"context"
 	"fmt"
-	"log"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -16,7 +16,10 @@ import (
 func newProxy(target string) *httputil.ReverseProxy {
 	parsedURL, err := url.Parse(target)
 	if err != nil {
-		log.Fatalf("Error occurred while parsing URL: %v", err)
+		logger.Log.Fatal().
+			Err(err).
+			Str("url", target).
+			Msg("error occurred while parsing URL")
 	}
 
 	return httputil.NewSingleHostReverseProxy(parsedURL)
@@ -60,12 +63,18 @@ func RegisterRoutes(cfg config.Config) *http.ServeMux {
 
 		// Check auth service readiness
 		if err := check(cfg.ApiAuthServiceInternalURL); err != nil {
+			logger.Log.Warn().
+				Err(err).
+				Msg("auth-service is not ready")
 			http.Error(w, err.Error(), http.StatusServiceUnavailable)
 			return
 		}
 
 		// Check user service readiness
 		if err := check(cfg.ApiUserServiceInternalURL); err != nil {
+			logger.Log.Warn().
+				Err(err).
+				Msg("user-service is not ready")
 			http.Error(w, err.Error(), http.StatusServiceUnavailable)
 			return
 		}

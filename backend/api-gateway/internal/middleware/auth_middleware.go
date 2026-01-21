@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"api-gateway/internal/config"
+	"api-gateway/internal/logger"
 	"api-gateway/internal/util"
 	"net/http"
 	"strings"
@@ -13,6 +14,11 @@ func AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
+			logger.Log.Warn().
+				Str("path", r.URL.Path).
+				Str("ip", r.RemoteAddr).
+				Msg("access token not found")
+
 			http.Error(w, "access token not found", http.StatusUnauthorized)
 			return
 		}
@@ -21,6 +27,11 @@ func AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 
 		_, err := util.ValidateToken(tokenStr, []byte(accessSecret))
 		if err != nil {
+			logger.Log.Warn().
+				Err(err).
+				Str("path", r.URL.Path).
+				Str("ip", r.RemoteAddr).
+				Msg("invalid or expired token")
 			http.Error(w, "invalid or expired token", http.StatusUnauthorized)
 			return
 		}

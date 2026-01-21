@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 	httpHandler "user-service/internal/handler/http"
+	"user-service/internal/logger"
 
 	"github.com/gorilla/mux"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -23,6 +24,7 @@ func RegisterRoutes(handlers httpHandler.Handlers, db *pgxpool.Pool) http.Handle
 		defer cancel()
 
 		if err := db.Ping(ctx); err != nil {
+			logger.Log.Error().Err(err).Msg("database is not ready")
 			http.Error(w, "database is not ready", http.StatusServiceUnavailable)
 			return
 		}
