@@ -15,6 +15,8 @@ RUN npm run build
 
 FROM nginx:alpine
 
+RUN apk --no-cache add curl
+
 COPY --from=builder /app/dist /usr/share/nginx/html
 
 EXPOSE ${APP_PORT}

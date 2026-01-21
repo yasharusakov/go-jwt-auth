@@ -32,6 +32,7 @@ func RegisterRoutes(cfg config.Config) *http.ServeMux {
 	userProxy := newProxy(cfg.ApiUserServiceInternalURL)
 
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		logger.Log.Info().Msg("Health check passed")
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("OK"))
 	})
@@ -79,6 +80,7 @@ func RegisterRoutes(cfg config.Config) *http.ServeMux {
 			return
 		}
 
+		logger.Log.Info().Msg("Ready check passed")
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("READY"))
 	})
