@@ -5,12 +5,12 @@ import (
 	"auth-service/internal/config"
 	"auth-service/internal/dto"
 	"auth-service/internal/httpresponse"
+	"auth-service/internal/logger"
 	"auth-service/internal/service"
 	"auth-service/internal/util"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 
 	"github.com/go-playground/validator/v10"
@@ -66,7 +66,9 @@ func (h *authHandler) respondWithError(err error, w http.ResponseWriter) {
 	case errors.Is(err, apperror.ErrValidationFailed), errors.Is(err, apperror.ErrInvalidRequestBody):
 		httpresponse.WriteError(w, err.Error(), http.StatusBadRequest)
 	default:
-		log.Printf("INTERNAL SERVER ERROR: %v", err)
+		logger.Log.Error().
+			Err(err).
+			Msg("internal server error")
 		httpresponse.WriteError(w, "internal server error", http.StatusInternalServerError)
 	}
 }
@@ -84,6 +86,11 @@ func (h *authHandler) Register(w http.ResponseWriter, r *http.Request) {
 		h.respondWithError(err, w)
 		return
 	}
+
+	logger.Log.Info().
+		Str("id", result.User.ID).
+		Str("email", result.User.Email).
+		Msg("user registered")
 
 	util.SetRefreshTokenCookie(w, result.RefreshToken, h.cfg.JWT.JWTRefreshTokenExp, h.cfg.AppEnv == "production")
 
@@ -103,9 +110,17 @@ func (h *authHandler) Login(w http.ResponseWriter, r *http.Request) {
 	result, err := h.service.Login(r.Context(), req.Email, req.Password)
 
 	if err != nil {
+		logger.Log.Warn().
+			Str("email", req.Email).
+			Msg("login failed")
 		h.respondWithError(err, w)
 		return
 	}
+
+	logger.Log.Info().
+		Str("id", result.User.ID).
+		Str("email", result.User.Email).
+		Msg("user logged in")
 
 	util.SetRefreshTokenCookie(w, result.RefreshToken, h.cfg.JWT.JWTRefreshTokenExp, h.cfg.AppEnv == "production")
 
@@ -118,6 +133,8 @@ func (h *authHandler) Login(w http.ResponseWriter, r *http.Request) {
 func (h *authHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 	cookie, err := r.Cookie("refresh_token")
 	if err != nil {
+		logger.Log.Warn().
+			Msg("refresh token not found")
 		httpresponse.WriteError(w, "refresh token not found", http.StatusUnauthorized)
 		return
 	}
@@ -125,6 +142,8 @@ func (h *authHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 	result, err := h.service.Refresh(r.Context(), cookie.Value)
 
 	if err != nil {
+		logger.Log.Warn().
+			Msg("refresh token invalid or expired")
 		h.respondWithError(err, w)
 		return
 	}
@@ -142,6 +161,9 @@ func (h *authHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	if err == nil {
 		_ = h.service.Logout(r.Context(), cookie.Value)
 	}
+
+	logger.Log.Info().
+		Msg("user logged out")
 
 	util.RemoveRefreshTokenCookie(w, h.cfg.AppEnv == "production")
 	w.WriteHeader(http.StatusOK)

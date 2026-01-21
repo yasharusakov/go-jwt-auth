@@ -5,6 +5,8 @@ import (
 	"time"
 )
 
+// TODO: Modify the cookie path "const RefreshTokenCookiePath = "/api/auth"
+
 func SetRefreshTokenCookie(w http.ResponseWriter, refreshToken string, exp time.Duration, isProd bool) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     "refresh_token",

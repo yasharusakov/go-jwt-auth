@@ -4,6 +4,7 @@ import (
 	grpcClient "auth-service/internal/client/grpc"
 	"auth-service/internal/config"
 	"auth-service/internal/handler"
+	"auth-service/internal/logger"
 	"auth-service/internal/repository"
 	"auth-service/internal/router"
 	"auth-service/internal/server"
@@ -11,7 +12,6 @@ import (
 	"auth-service/internal/storage"
 	"context"
 	"errors"
-	"log"
 	"net/http"
 	"os/signal"
 	"syscall"
@@ -20,25 +20,30 @@ import (
 
 func Run() {
 	cfg := config.GetConfig()
+	logger.Init(cfg.AppEnv)
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
 	postgres, err := storage.NewPostgres(ctx, cfg.Postgres)
 	if err != nil {
-		log.Fatal("Failed to init postgres: ", err)
+		logger.Log.Fatal().
+			Err(err).
+			Msg("Failed to connect to Postgres")
 	}
 	defer func() {
-		log.Println("Closing postgres connection...")
+		logger.Log.Info().Msg("Closing postgres connection...")
 		postgres.Close()
 	}()
 
 	grpcUserClient, err := grpcClient.NewGRPCUserClient(cfg.GRPCUserServiceInternalURL)
 	if err != nil {
-		log.Fatal("Failed to create gRPC user client: ", err)
+		logger.Log.Fatal().
+			Err(err).
+			Msg("Failed to connect to gRPC user client")
 	}
 	defer func() {
-		log.Println("closing gRPC user client...")
+		logger.Log.Info().Msg("Closing gRPC user client...")
 		grpcUserClient.Close()
 	}()
 
@@ -52,16 +57,21 @@ func Run() {
 	serverErrors := make(chan error, 1)
 
 	go func() {
-		log.Printf("HTTP server is running on port: %s", cfg.ApiAuthServiceInternalPort)
+		logger.Log.Info().
+			Str("port", cfg.ApiAuthServiceInternalPort).
+			Msg("Starting HTTP server...")
+
 		serverErrors <- httpServer.Run(cfg.ApiAuthServiceInternalPort, routes)
 	}()
 
 	select {
 	case <-ctx.Done():
-		log.Println("Shutdown signal received")
+		logger.Log.Info().Msg("Shutdown signal received")
 	case err := <-serverErrors:
 		if !errors.Is(err, http.ErrServerClosed) {
-			log.Fatalf("Server error: %v", err)
+			logger.Log.Fatal().
+				Err(err).
+				Msg("Server error")
 		}
 		return
 	}
@@ -70,8 +80,10 @@ func Run() {
 	defer cancel()
 
 	if err = httpServer.Shutdown(shutdownCtx); err != nil {
-		log.Printf("Server shutdown error: %v", err)
+		logger.Log.Error().
+			Err(err).
+			Msg("Server shutdown error")
 	} else {
-		log.Println("Server stopped gracefully")
+		logger.Log.Info().Msg("Server shutdown gracefully")
 	}
 }

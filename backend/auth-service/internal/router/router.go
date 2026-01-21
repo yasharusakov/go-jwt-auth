@@ -3,6 +3,7 @@ package router
 import (
 	grpcClient "auth-service/internal/client/grpc"
 	"auth-service/internal/handler"
+	"auth-service/internal/logger"
 	"context"
 	"net/http"
 	"time"
@@ -24,11 +25,17 @@ func RegisterRoutes(handlers handler.AuthHandler, db *pgxpool.Pool, grpcUserClie
 		defer cancel()
 
 		if err := db.Ping(ctx); err != nil {
+			logger.Log.Error().
+				Err(err).
+				Msg("Database ping failed")
 			http.Error(w, "database not ready", http.StatusServiceUnavailable)
 			return
 		}
 
 		if err := grpcUserClient.Ping(ctx); err != nil {
+			logger.Log.Error().
+				Err(err).
+				Msg("gRPC user client ping failed")
 			http.Error(w, "gRPC user client not ready", http.StatusServiceUnavailable)
 			return
 		}
