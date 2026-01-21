@@ -16,6 +16,7 @@ func RegisterRoutes(handlers handler.AuthHandler, db *pgxpool.Pool, grpcUserClie
 	m := mux.NewRouter()
 
 	m.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		logger.Log.Info().Msg("Health check passed")
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("OK"))
 	}).Methods("GET")
@@ -40,6 +41,7 @@ func RegisterRoutes(handlers handler.AuthHandler, db *pgxpool.Pool, grpcUserClie
 			return
 		}
 
+		logger.Log.Info().Msg("Ready check passed")
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("READY"))
 	}).Methods("GET")

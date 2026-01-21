@@ -15,6 +15,7 @@ func RegisterRoutes(handlers httpHandler.Handlers, db *pgxpool.Pool) http.Handle
 	m := mux.NewRouter()
 
 	m.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		logger.Log.Info().Msg("Health check passed")
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("OK"))
 	})
@@ -29,6 +30,7 @@ func RegisterRoutes(handlers httpHandler.Handlers, db *pgxpool.Pool) http.Handle
 			return
 		}
 
+		logger.Log.Info().Msg("Ready check passed")
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("READY"))
 	})

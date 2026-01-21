@@ -18,9 +18,11 @@ services:
     restart: always
     healthcheck:
       test: [ "CMD", "pg_isready", "-U", "${DB_AUTH_POSTGRES_USER}", "-d", "${DB_AUTH_POSTGRES_DB}" ]
-      interval: 2s
-      timeout: 2s
-      retries: 20
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+      start_interval: 1s
 
   migrator-auth:
     image: migrate/migrate
@@ -44,8 +46,8 @@ services:
     expose:
       - "${DB_USER_POSTGRES_INTERNAL_PORT}"
     image: postgres:alpine
-#    ports:
-#      - "${DB_USER_POSTGRES_EXTERNAL_PORT}:${DB_USER_POSTGRES_INTERNAL_PORT}"
+    #    ports:
+    #      - "${DB_USER_POSTGRES_EXTERNAL_PORT}:${DB_USER_POSTGRES_INTERNAL_PORT}"
     env_file:
       - .env
     environment:
@@ -59,9 +61,11 @@ services:
     restart: always
     healthcheck:
       test: [ "CMD", "pg_isready", "-U", "${DB_USER_POSTGRES_USER}", "-d", "${DB_USER_POSTGRES_DB}" ]
-      interval: 2s
-      timeout: 2s
-      retries: 20
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+      start_interval: 1s
 
   migrator-user:
     image: migrate/migrate
@@ -95,6 +99,13 @@ services:
     depends_on:
       - auth-service
       - user-service
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:${API_GATEWAY_INTERNAL_PORT}/health" ]
+      interval: 30s
+      timeout: 2s
+      retries: 3
+      start_period: 5s
+      start_interval: 1s
 
   auth-service:
     expose:
@@ -113,6 +124,13 @@ services:
     networks:
       - app_network
     restart: always
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:${API_AUTH_SERVICE_INTERNAL_PORT}/health" ]
+      interval: 30s
+      timeout: 2s
+      retries: 3
+      start_period: 5s
+      start_interval: 1s
 
   user-service:
     expose:
@@ -131,6 +149,13 @@ services:
     networks:
       - app_network
     restart: always
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:${API_USER_SERVICE_INTERNAL_PORT}/health" ]
+      interval: 30s
+      timeout: 2s
+      retries: 3
+      start_period: 5s
+      start_interval: 1s
 
   client:
     env_file:
@@ -147,6 +172,13 @@ services:
     networks:
       - app_network
     restart: always
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:${CLIENT_INTERNAL_PORT}/" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+      start_interval: 1s
 
 networks:
   app_network:

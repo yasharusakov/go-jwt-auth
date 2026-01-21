@@ -10,13 +10,15 @@ COPY . .
 
 ARG APP_PORT
 
-RUN go build -o app ./cmd/main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -o app ./cmd/main.go
 
 FROM alpine:latest
 
 WORKDIR /app
 
-COPY --from=builder /app .
+RUN apk --no-cache add curl
+
+COPY --from=builder /app/app .
 
 EXPOSE ${APP_PORT}
 

@@ -27,10 +27,10 @@ func Run() {
 
 	go func() {
 		logger.Log.Info().
-			Str("port", cfg.ApiGatewayExternalPort).
+			Str("port", cfg.ApiGatewayInternalPort).
 			Msg("starting HTTP server")
 
-		serverErrors <- srv.Run(cfg.ApiGatewayExternalPort, handlers)
+		serverErrors <- srv.Run(cfg.ApiGatewayInternalPort, handlers)
 	}()
 
 	select {

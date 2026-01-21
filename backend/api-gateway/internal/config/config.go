@@ -7,7 +7,7 @@ import (
 
 type Config struct {
 	AppEnv                    string
-	ApiGatewayExternalPort    string
+	ApiGatewayInternalPort    string
 	ClientExternalURL         string
 	ApiAuthServiceInternalURL string
 	ApiUserServiceInternalURL string
@@ -22,7 +22,7 @@ var (
 func LoadConfigFromEnv() Config {
 	return Config{
 		AppEnv:                    os.Getenv("APP_ENV"),
-		ApiGatewayExternalPort:    os.Getenv("API_GATEWAY_EXTERNAL_PORT"),
+		ApiGatewayInternalPort:    os.Getenv("API_GATEWAY_INTERNAL_PORT"),
 		ClientExternalURL:         os.Getenv("CLIENT_EXTERNAL_URL"),
 		ApiAuthServiceInternalURL: os.Getenv("API_AUTH_SERVICE_INTERNAL_URL"),
 		ApiUserServiceInternalURL: os.Getenv("API_USER_SERVICE_INTERNAL_URL"),
