@@ -2,11 +2,11 @@ package app
 
 import (
 	"api-gateway/internal/config"
+	"api-gateway/internal/logger"
 	"api-gateway/internal/router"
 	"api-gateway/internal/server"
 	"context"
 	"errors"
-	"log"
 	"net/http"
 	"os/signal"
 	"syscall"
@@ -15,6 +15,7 @@ import (
 
 func Run() {
 	cfg := config.GetConfig()
+	logger.Init(cfg.AppEnv)
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
@@ -25,16 +26,21 @@ func Run() {
 	serverErrors := make(chan error, 1)
 
 	go func() {
-		log.Printf("HTTP server is running on port: %s", cfg.ApiGatewayExternalPort)
+		logger.Log.Info().
+			Str("port", cfg.ApiGatewayExternalPort).
+			Msg("starting HTTP server")
+
 		serverErrors <- srv.Run(cfg.ApiGatewayExternalPort, handlers)
 	}()
 
 	select {
 	case <-ctx.Done():
-		log.Println("Shutdown signal received")
+		logger.Log.Info().Msg("shutting down HTTP server")
 	case err := <-serverErrors:
 		if !errors.Is(err, http.ErrServerClosed) {
-			log.Fatalf("Server error: %v", err)
+			logger.Log.Fatal().
+				Err(err).
+				Msg("server error")
 		}
 		return
 	}
@@ -43,9 +49,11 @@ func Run() {
 	defer cancel()
 
 	if err := srv.Shutdown(shutdownCtx); err != nil {
-		log.Printf("Server shutdown error: %v", err)
+		logger.Log.Error().
+			Err(err).
+			Msg("server shutdown error")
 	} else {
-		log.Println("Server stopped gracefully")
+		logger.Log.Info().Msg("server stopped gracefully")
 	}
 
 }
