@@ -4,6 +4,9 @@ import (
 	"context"
 	userpb "user-service/internal/genproto/user/v1"
 	"user-service/internal/service"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type UserHandler struct {
@@ -37,12 +40,16 @@ func NewUserHandler(s service.UserService) *UserHandler {
 //}
 
 func (h *UserHandler) GetUserByEmail(ctx context.Context, req *userpb.GetUserByEmailRequest) (*userpb.GetUserByEmailResponse, error) {
+	if req.Email == "" {
+		return nil, status.Error(codes.InvalidArgument, "email is required")
+	}
+
 	user, err := h.userService.GetUserByEmail(ctx, req.Email)
 	if err != nil {
-		return nil, err
+		return nil, status.Errorf(codes.Internal, "failed to get user by email: %v", err)
 	}
 	if user == nil {
-		return &userpb.GetUserByEmailResponse{}, nil
+		return nil, status.Error(codes.NotFound, "user not found")
 	}
 
 	return &userpb.GetUserByEmailResponse{
@@ -55,12 +62,16 @@ func (h *UserHandler) GetUserByEmail(ctx context.Context, req *userpb.GetUserByE
 }
 
 func (h *UserHandler) GetUserByID(ctx context.Context, req *userpb.GetUserByIDRequest) (*userpb.GetUserByIDResponse, error) {
+	if req.Id == "" {
+		return nil, status.Error(codes.InvalidArgument, "id is required")
+	}
+
 	user, err := h.userService.GetUserByID(ctx, req.Id)
 	if err != nil {
-		return nil, err
+		return nil, status.Errorf(codes.Internal, "failed to get user by id: %v", err)
 	}
 	if user == nil {
-		return &userpb.GetUserByIDResponse{}, nil
+		return nil, status.Error(codes.NotFound, "user not found")
 	}
 
 	return &userpb.GetUserByIDResponse{
@@ -72,17 +83,25 @@ func (h *UserHandler) GetUserByID(ctx context.Context, req *userpb.GetUserByIDRe
 }
 
 func (h *UserHandler) CheckUserExistsByEmail(ctx context.Context, req *userpb.CheckUserExistsByEmailRequest) (*userpb.CheckUserExistsByEmailResponse, error) {
+	if req.Email == "" {
+		return nil, status.Error(codes.InvalidArgument, "email is required")
+	}
+
 	exists, err := h.userService.CheckUserExistsByEmail(ctx, req.Email)
 	if err != nil {
-		return nil, err
+		return nil, status.Errorf(codes.Internal, "failed to check user existence: %v", err)
 	}
 	return &userpb.CheckUserExistsByEmailResponse{Exists: exists}, nil
 }
 
 func (h *UserHandler) RegisterUser(ctx context.Context, req *userpb.RegisterUserRequest) (*userpb.RegisterUserResponse, error) {
+	if req.Email == "" || req.Password == "" {
+		return nil, status.Error(codes.InvalidArgument, "email and password are required")
+	}
+
 	userID, err := h.userService.RegisterUser(ctx, req.Email, []byte(req.Password))
 	if err != nil {
-		return nil, err
+		return nil, status.Errorf(codes.Internal, "failed to register user: %v", err)
 	}
 
 	return &userpb.RegisterUserResponse{
