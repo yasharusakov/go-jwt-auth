@@ -97,12 +97,14 @@ services:
     networks:
       - app_network
     depends_on:
-      - auth-service
-      - user-service
+      auth-service:
+        condition: service_healthy
+      user-service:
+        condition: service_healthy
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:${API_GATEWAY_INTERNAL_PORT}/health" ]
+      test: [ "CMD", "curl", "-f", "http://localhost:${API_GATEWAY_INTERNAL_PORT}/ready" ]
       interval: 30s
-      timeout: 2s
+      timeout: 10s
       retries: 3
       start_period: 5s
       start_interval: 1s
@@ -125,7 +127,7 @@ services:
       - app_network
     restart: always
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:${API_AUTH_SERVICE_INTERNAL_PORT}/health" ]
+      test: [ "CMD", "curl", "-f", "http://localhost:${API_AUTH_SERVICE_INTERNAL_PORT}/ready" ]
       interval: 30s
       timeout: 2s
       retries: 3
@@ -150,7 +152,7 @@ services:
       - app_network
     restart: always
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:${API_USER_SERVICE_INTERNAL_PORT}/health" ]
+      test: [ "CMD", "curl", "-f", "http://localhost:${API_USER_SERVICE_INTERNAL_PORT}/ready" ]
       interval: 30s
       timeout: 2s
       retries: 3
@@ -168,7 +170,8 @@ services:
     ports:
       - "${CLIENT_EXTERNAL_PORT}:${CLIENT_INTERNAL_PORT}"
     depends_on:
-      - api-gateway
+      api-gateway:
+        condition: service_healthy
     networks:
       - app_network
     restart: always
