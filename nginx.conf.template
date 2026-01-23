@@ -1,0 +1,17 @@
+server {
+    listen ${CLIENT_INTERNAL_PORT};
+
+    # Static files
+    location / {
+        root /usr/share/nginx/html; # Path to your static files
+        index index.html; # Default file
+        try_files $uri $uri/ /index.html;  # SPA Routing
+    }
+
+    # API — proxied to API Gateway
+    location /api/ {
+        proxy_pass http://api-gateway:${API_GATEWAY_INTERNAL_PORT};
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
