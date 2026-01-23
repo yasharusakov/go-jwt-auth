@@ -92,8 +92,10 @@ services:
         APP_PORT: ${API_GATEWAY_INTERNAL_PORT}
     env_file:
       - .env
-    ports:
-      - "${API_GATEWAY_EXTERNAL_PORT}:${API_GATEWAY_INTERNAL_PORT}"
+#    ports:
+#      - "${API_GATEWAY_EXTERNAL_PORT}:${API_GATEWAY_INTERNAL_PORT}"
+    expose:
+      - "${API_GATEWAY_INTERNAL_PORT}"
     networks:
       - app_network
     depends_on:
@@ -165,23 +167,19 @@ services:
     build:
       context: ./frontend
       args:
-        VITE_API_URL: ${API_GATEWAY_EXTERNAL_URL}
+#        VITE_API_URL: ${API_GATEWAY_EXTERNAL_URL}
+        VITE_API_URL: /api
         APP_PORT: ${CLIENT_INTERNAL_PORT}
     ports:
       - "${CLIENT_EXTERNAL_PORT}:${CLIENT_INTERNAL_PORT}"
     depends_on:
       api-gateway:
         condition: service_healthy
+    volumes:
+      - ./nginx.conf.template:/etc/nginx/templates/default.conf.template
     networks:
       - app_network
     restart: always
-    healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:${CLIENT_INTERNAL_PORT}/" ]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 5s
-      start_interval: 1s
 
 networks:
   app_network:
