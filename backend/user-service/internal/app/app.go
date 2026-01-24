@@ -28,24 +28,25 @@ func Run() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	postgres, err := storage.NewPostgres(ctx, cfg.Postgres)
+	//postgres, err := storage.NewPostgres(ctx, cfg.Postgres)
+	postgresGORM, err := storage.NewPostgresGORM(ctx, cfg.Postgres)
 	if err != nil {
 		logger.Log.Fatal().
 			Err(err).
 			Msg("Error occurred while initializing postgres")
 	}
 	defer func() {
-		logger.Log.Info().
-			Msg("Closing postgres connection...")
-		postgres.Close()
+		logger.Log.Info().Msg("Closing postgres connection...")
+		postgresGORM.Close()
 	}()
 
-	repositories := repository.NewUserRepository(postgres)
-	services := service.NewUserService(repositories)
+	//repositories := repository.NewUserRepository(postgres)
+	userRepository := repository.NewUserGormRepository(postgresGORM.DB)
+	userService := service.NewUserService(userRepository)
 
-	httpHandlers := httpHandler.NewUserHandler(services)
-	grpcHandlers := grpcHandler.NewUserHandler(services)
-	routes := router.RegisterRoutes(httpHandlers, postgres)
+	userHttpHandler := httpHandler.NewUserHandler(userService)
+	userGrpcHandlers := grpcHandler.NewUserHandler(userService)
+	routes := router.RegisterRoutes(userHttpHandler, postgresGORM.DB)
 
 	httpServer := &server.HttpServer{}
 	grpcServer := &server.GRPCServer{}
@@ -60,7 +61,7 @@ func Run() {
 			Str("port", cfg.GRPCUserServiceInternalPort).
 			Msg("Starting gRPC server...")
 
-		if runErr := grpcServer.Run(cfg.GRPCUserServiceInternalPort, grpcHandlers); runErr != nil && !errors.Is(runErr, grpc.ErrServerStopped) {
+		if runErr := grpcServer.Run(cfg.GRPCUserServiceInternalPort, userGrpcHandlers); runErr != nil && !errors.Is(runErr, grpc.ErrServerStopped) {
 			serverErrors <- runErr
 		}
 	}()
