@@ -33,7 +33,7 @@ func RegisterRoutes(handlers httpHandler.Handlers, db *gorm.DB) http.Handler {
 		}
 
 		if err := sqlDB.Ping(); err != nil {
-			logger.Log.Error().Err(err).Msg("database is not ready")
+			logger.Log.Error().Err(err).Msg("database ping failed")
 			http.Error(w, "database is not ready", http.StatusServiceUnavailable)
 			return
 		}

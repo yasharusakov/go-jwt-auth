@@ -96,7 +96,7 @@ func (h *authHandler) Register(w http.ResponseWriter, r *http.Request) {
 
 	httpresponse.WriteJSON(w, http.StatusOK, dto.AuthResponse{
 		AccessToken: result.AccessToken,
-		User:        result.User,
+		User:        dto.UserResponse(result.User),
 	})
 }
 
@@ -126,7 +126,7 @@ func (h *authHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 	httpresponse.WriteJSON(w, http.StatusOK, dto.AuthResponse{
 		AccessToken: result.AccessToken,
-		User:        result.User,
+		User:        dto.UserResponse(result.User),
 	})
 }
 
@@ -152,7 +152,7 @@ func (h *authHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 
 	httpresponse.WriteJSON(w, http.StatusOK, dto.AuthResponse{
 		AccessToken: result.AccessToken,
-		User:        result.User,
+		User:        dto.UserResponse(result.User),
 	})
 }
 

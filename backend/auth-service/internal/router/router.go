@@ -9,10 +9,10 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/jackc/pgx/v5/pgxpool"
+	"gorm.io/gorm"
 )
 
-func RegisterRoutes(handlers handler.AuthHandler, db *pgxpool.Pool, grpcUserClient grpcClient.UserService) http.Handler {
+func RegisterRoutes(handlers handler.AuthHandler, db *gorm.DB, grpcUserClient grpcClient.UserService) http.Handler {
 	m := mux.NewRouter()
 
 	m.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
@@ -25,18 +25,21 @@ func RegisterRoutes(handlers handler.AuthHandler, db *pgxpool.Pool, grpcUserClie
 		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
 		defer cancel()
 
-		if err := db.Ping(ctx); err != nil {
-			logger.Log.Error().
-				Err(err).
-				Msg("Database ping failed")
-			http.Error(w, "database not ready", http.StatusServiceUnavailable)
+		sqlDB, err := db.WithContext(ctx).DB()
+		if err != nil {
+			logger.Log.Error().Err(err).Msg("database is not ready")
+			http.Error(w, "database is not ready", http.StatusServiceUnavailable)
+			return
+		}
+
+		if err := sqlDB.Ping(); err != nil {
+			logger.Log.Error().Err(err).Msg("database ping failed")
+			http.Error(w, "database is not ready", http.StatusServiceUnavailable)
 			return
 		}
 
 		if err := grpcUserClient.Ping(ctx); err != nil {
-			logger.Log.Error().
-				Err(err).
-				Msg("gRPC user client ping failed")
+			logger.Log.Error().Err(err).Msg("gRPC user client ping failed")
 			http.Error(w, "gRPC user client not ready", http.StatusServiceUnavailable)
 			return
 		}

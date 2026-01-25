@@ -20,18 +20,6 @@ type AuthResponse struct {
 	User        UserResponse `json:"user"`
 }
 
-type AuthResult struct {
-	AccessToken  string
-	RefreshToken string
-	User         UserResponse
-}
-
-type RefreshResult struct {
-	AccessToken  string
-	RefreshToken string
-	User         UserResponse
-}
-
 type ErrorResponse struct {
 	Message string `json:"error"`
 	Code    int    `json:"code"`
