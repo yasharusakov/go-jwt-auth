@@ -66,9 +66,7 @@ func (h *authHandler) respondWithError(err error, w http.ResponseWriter) {
 	case errors.Is(err, apperror.ErrValidationFailed), errors.Is(err, apperror.ErrInvalidRequestBody):
 		httpresponse.WriteError(w, err.Error(), http.StatusBadRequest)
 	default:
-		logger.Log.Error().
-			Err(err).
-			Msg("internal server error")
+		logger.Log.Error().Err(err).Msg("internal server error")
 		httpresponse.WriteError(w, "internal server error", http.StatusInternalServerError)
 	}
 }
@@ -88,15 +86,18 @@ func (h *authHandler) Register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	logger.Log.Info().
-		Str("id", result.User.ID).
-		Str("email", result.User.Email).
+		Str("id", result.UserID).
+		Str("email", result.Email).
 		Msg("user registered")
 
 	util.SetRefreshTokenCookie(w, result.RefreshToken, h.cfg.JWT.JWTRefreshTokenExp, h.cfg.AppEnv == "production")
 
 	httpresponse.WriteJSON(w, http.StatusOK, dto.AuthResponse{
 		AccessToken: result.AccessToken,
-		User:        dto.UserResponse(result.User),
+		User: dto.UserResponse{
+			ID:    result.UserID,
+			Email: result.Email,
+		},
 	})
 }
 
@@ -118,15 +119,18 @@ func (h *authHandler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	logger.Log.Info().
-		Str("id", result.User.ID).
-		Str("email", result.User.Email).
+		Str("id", result.UserID).
+		Str("email", result.Email).
 		Msg("user logged in")
 
 	util.SetRefreshTokenCookie(w, result.RefreshToken, h.cfg.JWT.JWTRefreshTokenExp, h.cfg.AppEnv == "production")
 
 	httpresponse.WriteJSON(w, http.StatusOK, dto.AuthResponse{
 		AccessToken: result.AccessToken,
-		User:        dto.UserResponse(result.User),
+		User: dto.UserResponse{
+			ID:    result.UserID,
+			Email: result.Email,
+		},
 	})
 }
 
@@ -152,19 +156,21 @@ func (h *authHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 
 	httpresponse.WriteJSON(w, http.StatusOK, dto.AuthResponse{
 		AccessToken: result.AccessToken,
-		User:        dto.UserResponse(result.User),
+		User: dto.UserResponse{
+			ID:    result.UserID,
+			Email: result.Email,
+		},
 	})
 }
 
 func (h *authHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	cookie, err := r.Cookie("refresh_token")
+
 	if err == nil {
 		_ = h.service.Logout(r.Context(), cookie.Value)
 	}
 
-	logger.Log.Info().
-		Msg("user logged out")
-
+	logger.Log.Info().Msg("user logged out")
 	util.RemoveRefreshTokenCookie(w, h.cfg.AppEnv == "production")
 	w.WriteHeader(http.StatusOK)
 }

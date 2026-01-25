@@ -13,29 +13,17 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// TODO: This is bad place for UserResponse, AuthResult and RefreshResult structs.
-
-type UserResponse struct {
-	ID    string `json:"id"`
-	Email string `json:"email"`
-}
-
 type AuthResult struct {
 	AccessToken  string
 	RefreshToken string
-	User         UserResponse
-}
-
-type RefreshResult struct {
-	AccessToken  string
-	RefreshToken string
-	User         UserResponse
+	UserID       string
+	Email        string
 }
 
 type AuthService interface {
 	Register(ctx context.Context, email, password string) (*AuthResult, error)
 	Login(ctx context.Context, email, password string) (*AuthResult, error)
-	Refresh(ctx context.Context, refreshToken string) (*RefreshResult, error)
+	Refresh(ctx context.Context, refreshToken string) (*AuthResult, error)
 	Logout(ctx context.Context, refreshToken string) error
 }
 
@@ -99,7 +87,7 @@ func (s *authService) Login(ctx context.Context, email, password string) (*AuthR
 	return s.createSession(ctx, userResp.User.Id, email)
 }
 
-func (s *authService) Refresh(ctx context.Context, refreshToken string) (*RefreshResult, error) {
+func (s *authService) Refresh(ctx context.Context, refreshToken string) (*AuthResult, error) {
 	claims, err := s.tokenManager.ValidateRefreshToken(refreshToken)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", apperror.ErrInvalidOrExpiredRefreshToken, err)
@@ -136,13 +124,11 @@ func (s *authService) Refresh(ctx context.Context, refreshToken string) (*Refres
 		return nil, fmt.Errorf("%w: %w", apperror.ErrUserNotFound, err)
 	}
 
-	return &RefreshResult{
+	return &AuthResult{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
-		User: UserResponse{
-			ID:    userData.User.Id,
-			Email: userData.User.Email,
-		},
+		UserID:       userData.User.Id,
+		Email:        userData.User.Email,
 	}, nil
 }
 
@@ -164,9 +150,7 @@ func (s *authService) createSession(ctx context.Context, userID, email string) (
 	return &AuthResult{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
-		User: UserResponse{
-			ID:    userID,
-			Email: email,
-		},
+		UserID:       userID,
+		Email:        email,
 	}, nil
 }
