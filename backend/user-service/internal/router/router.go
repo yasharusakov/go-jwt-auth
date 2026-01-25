@@ -2,16 +2,17 @@ package router
 
 import (
 	"context"
+
+	"github.com/gorilla/mux"
+	"gorm.io/gorm"
+
 	"net/http"
 	"time"
 	httpHandler "user-service/internal/handler/http"
 	"user-service/internal/logger"
-
-	"github.com/gorilla/mux"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func RegisterRoutes(handlers httpHandler.Handlers, db *pgxpool.Pool) http.Handler {
+func RegisterRoutes(handlers httpHandler.Handlers, db *gorm.DB) http.Handler {
 	m := mux.NewRouter()
 
 	m.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
@@ -24,8 +25,15 @@ func RegisterRoutes(handlers httpHandler.Handlers, db *pgxpool.Pool) http.Handle
 		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
 		defer cancel()
 
-		if err := db.Ping(ctx); err != nil {
+		sqlDB, err := db.WithContext(ctx).DB()
+		if err != nil {
 			logger.Log.Error().Err(err).Msg("database is not ready")
+			http.Error(w, "database is not ready", http.StatusServiceUnavailable)
+			return
+		}
+
+		if err := sqlDB.Ping(); err != nil {
+			logger.Log.Error().Err(err).Msg("database ping failed")
 			http.Error(w, "database is not ready", http.StatusServiceUnavailable)
 			return
 		}

@@ -20,6 +20,7 @@ func NewUserHandler(service service.UserService) Handlers {
 
 func (h *userHandler) GetAllUsers(w http.ResponseWriter, r *http.Request) {
 	users, err := h.service.GetAllUsers(r.Context())
+
 	if err != nil {
 		http.Error(w, "error: "+err.Error(), http.StatusInternalServerError)
 		return

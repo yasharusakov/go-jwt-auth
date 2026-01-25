@@ -25,7 +25,8 @@ func Run() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	postgres, err := storage.NewPostgres(ctx, cfg.Postgres)
+	//postgres, err := storage.NewPostgres(ctx, cfg.Postgres)
+	postgresGORM, err := storage.NewPostgresGORM(ctx, cfg.Postgres)
 	if err != nil {
 		logger.Log.Fatal().
 			Err(err).
@@ -33,7 +34,7 @@ func Run() {
 	}
 	defer func() {
 		logger.Log.Info().Msg("Closing postgres connection...")
-		postgres.Close()
+		postgresGORM.Close()
 	}()
 
 	grpcUserClient, err := grpcClient.NewGRPCUserClient(cfg.GRPCUserServiceInternalURL)
@@ -47,11 +48,11 @@ func Run() {
 		grpcUserClient.Close()
 	}()
 
-	tokenRepo := repository.NewTokenRepository(postgres, cfg)
+	tokenRepo := repository.NewTokenRepository(postgresGORM.DB, cfg)
 	tokenManager := service.NewTokenManager(cfg.JWT)
 	authService := service.NewAuthService(grpcUserClient, tokenRepo, tokenManager, cfg)
 	authHandler := handler.NewAuthHandler(authService, cfg)
-	routes := router.RegisterRoutes(authHandler, postgres, grpcUserClient)
+	routes := router.RegisterRoutes(authHandler, postgresGORM.DB, grpcUserClient)
 
 	httpServer := &server.HttpServer{}
 	serverErrors := make(chan error, 1)
