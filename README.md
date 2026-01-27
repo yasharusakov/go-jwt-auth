@@ -1,0 +1,67 @@
+# 🔐 Go JWT Auth
+
+A full-stack JWT authentication system built with microservices architecture.
+
+## 🏗 Architecture
+
+```
+Frontend (React) → Nginx → API Gateway → Auth Service ←→ User Service
+                                ↓            ↓               ↓
+                              Redis      PostgreSQL      PostgreSQL
+```
+
+## 🚀 Quick Start
+
+```bash
+# Clone and run
+git clone https://github.com/yasharusakov/go-jwt-auth.git
+cd go-jwt-auth
+make docker-run
+```
+
+## 📡 API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/auth/register` | Register new user |
+| POST | `/api/auth/login` | User login |
+| GET | `/api/auth/refresh` | Refresh tokens |
+| POST | `/api/auth/logout` | Logout |
+| GET | `/api/users` | Get all users |
+
+### Example
+
+```bash
+# Register
+curl -X POST http://localhost/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email": "user@example.com", "password": "password123"}'
+
+# Response
+{
+  "access_token": "eyJhbG...",
+  "user": { "id": "uuid", "email": "user@example.com" }
+}
+```
+
+## 🛠 Tech Stack
+
+- **Backend:** Go, Gorilla Mux, gRPC, GORM, PostgreSQL, Redis, JWT
+- **Frontend:** React, TypeScript, Redux Toolkit, Vite
+- **Infra:** Docker, Nginx, Buf (protobuf)
+
+## 📁 Project Structure
+
+```
+├── backend/
+│   ├── api-gateway/      # Entry point & proxy
+│   ├── auth-service/     # JWT authentication
+│   └── user-service/     # User management (HTTP + gRPC)
+├── frontend/             # React app
+├── proto/                # Protobuf definitions
+└── docker-compose.yaml
+```
+
+## 👤 Author
+
+[yasharusakov](https://github.com/yasharusakov)
