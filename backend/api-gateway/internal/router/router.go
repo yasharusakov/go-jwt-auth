@@ -96,6 +96,7 @@ func RegisterRoutes(redisCache cache.RedisCache, cfg config.Config) *http.ServeM
 			http.StripPrefix("/api/", authProxy).ServeHTTP,
 		),
 	))
+
 	mux.Handle("/api/user/", middleware.CORSMiddleware(
 		middleware.AuthMiddleware(
 			http.StripPrefix("/api/", userProxy).ServeHTTP,
