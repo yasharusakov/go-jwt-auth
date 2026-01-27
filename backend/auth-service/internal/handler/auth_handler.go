@@ -71,6 +71,19 @@ func (h *authHandler) respondWithError(err error, w http.ResponseWriter) {
 	}
 }
 
+// Register godoc
+// @Summary      Register a new user
+// @Description  Creates a new user account with the provided email and password.
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        request body dto.RegisterRequest true "Email и Password"
+// @Success      200 {object} dto.AuthResponse "Successful registration"
+// @Failure      400 {object} map[string]string "Validation error"
+// @Failure      401 {object} map[string]string "Invalid email or password"
+// @Failure      409 {object} map[string]string "User already exists"
+// @Failure      500 {object} map[string]string "Internal server error"
+// @Router       /register [post]
 func (h *authHandler) Register(w http.ResponseWriter, r *http.Request) {
 	var req dto.RegisterRequest
 	if err := h.decodeAndValidate(r, &req); err != nil {
@@ -101,6 +114,18 @@ func (h *authHandler) Register(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// Login godoc
+// @Summary      User login
+// @Description  Authenticates a user with email and password.
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        request body dto.LoginRequest true "Credentials"
+// @Success      200 {object} dto.AuthResponse "Successful login"
+// @Failure      400 {object} map[string]string "Validation error"
+// @Failure      401 {object} map[string]string "Invalid email or password"
+// @Failure      500 {object} map[string]string "Internal server error"
+// @Router       /login [post]
 func (h *authHandler) Login(w http.ResponseWriter, r *http.Request) {
 	var req dto.LoginRequest
 	if err := h.decodeAndValidate(r, &req); err != nil {
@@ -134,6 +159,15 @@ func (h *authHandler) Login(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// Refresh godoc
+// @Summary      Update tokens
+// @Description  Generates new access and refresh tokens using a valid refresh token from cookies.
+// @Tags         auth
+// @Produce      json
+// @Success      200 {object} dto.AuthResponse "New tokens"
+// @Failure      401 {object} map[string]string "Refresh token invalid or expired"
+// @Failure      500 {object} map[string]string "Internal server error"
+// @Router       /refresh [post]
 func (h *authHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 	cookie, err := r.Cookie("refresh_token")
 	if err != nil {
@@ -163,6 +197,13 @@ func (h *authHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// Logout godoc
+// @Summary      Logout user
+// @Description  Removes the refresh token cookies and invalidates the refresh token from PostgreSQL.
+// @Tags         auth
+// @Produce      json
+// @Success      200 {object} map[string]string "Successful logout"
+// @Router       /logout [post]
 func (h *authHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	cookie, err := r.Cookie("refresh_token")
 

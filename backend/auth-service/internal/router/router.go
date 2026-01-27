@@ -8,7 +8,10 @@ import (
 	"net/http"
 	"time"
 
+	_ "auth-service/docs"
+
 	"github.com/gorilla/mux"
+	httpSwagger "github.com/swaggo/http-swagger"
 	"gorm.io/gorm"
 )
 
@@ -48,6 +51,8 @@ func RegisterRoutes(handlers handler.AuthHandler, db *gorm.DB, grpcUserClient gr
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("READY"))
 	}).Methods("GET")
+
+	m.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
 
 	m.HandleFunc("/api/auth/register", handlers.Register).Methods("POST")
 	m.HandleFunc("/api/auth/login", handlers.Login).Methods("POST")

@@ -102,10 +102,10 @@ services:
         APP_PORT: ${API_GATEWAY_INTERNAL_PORT}
     env_file:
       - .env
-#    ports:
-#      - "${API_GATEWAY_EXTERNAL_PORT}:${API_GATEWAY_INTERNAL_PORT}"
-    expose:
-      - "${API_GATEWAY_INTERNAL_PORT}"
+    ports:
+      - "${API_GATEWAY_EXTERNAL_PORT}:${API_GATEWAY_INTERNAL_PORT}"
+#    expose:
+#      - "${API_GATEWAY_INTERNAL_PORT}"
     networks:
       - app_network
     depends_on:
@@ -124,16 +124,16 @@ services:
       start_interval: 1s
 
   auth-service:
-    expose:
-      - "${API_AUTH_SERVICE_INTERNAL_PORT}"
+#    expose:
+#      - "${API_AUTH_SERVICE_INTERNAL_PORT}"
     build:
       context: "./backend/auth-service"
       args:
         APP_PORT: ${API_AUTH_SERVICE_INTERNAL_PORT}
     env_file:
       - .env
-    #    ports:
-    #      - "${API_AUTH_SERVICE_EXTERNAL_PORT}:${API_AUTH_SERVICE_INTERNAL_PORT}"
+    ports:
+      - "${API_AUTH_SERVICE_EXTERNAL_PORT}:${API_AUTH_SERVICE_INTERNAL_PORT}"
     depends_on:
       migrator-auth:
         condition: service_completed_successfully
@@ -149,16 +149,16 @@ services:
       start_interval: 1s
 
   user-service:
-    expose:
-      - "${API_USER_SERVICE_INTERNAL_PORT}"
+#    expose:
+#      - "${API_USER_SERVICE_INTERNAL_PORT}"
     build:
       context: "./backend/user-service"
       args:
         APP_PORT: ${API_USER_SERVICE_INTERNAL_PORT}
     env_file:
       - .env
-    #    ports:
-    #      - "${API_USER_SERVICE_EXTERNAL_PORT}:${API_USER_SERVICE_INTERNAL_PORT}"
+    ports:
+      - "${API_USER_SERVICE_EXTERNAL_PORT}:${API_USER_SERVICE_INTERNAL_PORT}"
     depends_on:
       migrator-user:
         condition: service_completed_successfully
