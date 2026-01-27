@@ -85,6 +85,16 @@ services:
       - app_network
     restart: on-failure
 
+  redis:
+    image: redis:alpine
+    expose:
+      - "${REDIS_INTERNAL_PORT}"
+    #    ports:
+    #      - "${REDIS_EXTERNAL_PORT}:${REDIS_INTERNAL_PORT}"
+    networks:
+      - app_network
+    restart: always
+
   api-gateway:
     build:
       context: "./backend/api-gateway"
@@ -103,6 +113,8 @@ services:
         condition: service_healthy
       user-service:
         condition: service_healthy
+      redis:
+        condition: service_started
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:${API_GATEWAY_INTERNAL_PORT}/ready" ]
       interval: 30s

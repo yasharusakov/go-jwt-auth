@@ -1,6 +1,7 @@
 package router
 
 import (
+	"api-gateway/internal/cache"
 	"api-gateway/internal/config"
 	"api-gateway/internal/logger"
 	"api-gateway/internal/middleware"
@@ -25,8 +26,10 @@ func newProxy(target string) *httputil.ReverseProxy {
 	return httputil.NewSingleHostReverseProxy(parsedURL)
 }
 
-func RegisterRoutes(cfg config.Config) *http.ServeMux {
+func RegisterRoutes(redisCache cache.RedisCache, cfg config.Config) *http.ServeMux {
 	mux := http.NewServeMux()
+
+	rateLimiter := middleware.NewRateLimitMiddleware(redisCache)
 
 	authProxy := newProxy(cfg.ApiAuthServiceInternalURL)
 	userProxy := newProxy(cfg.ApiUserServiceInternalURL)
@@ -64,18 +67,21 @@ func RegisterRoutes(cfg config.Config) *http.ServeMux {
 
 		// Check auth service readiness
 		if err := check(cfg.ApiAuthServiceInternalURL); err != nil {
-			logger.Log.Warn().
-				Err(err).
-				Msg("auth-service is not ready")
+			logger.Log.Warn().Err(err).Msg("auth-service is not ready")
 			http.Error(w, err.Error(), http.StatusServiceUnavailable)
 			return
 		}
 
 		// Check user service readiness
 		if err := check(cfg.ApiUserServiceInternalURL); err != nil {
-			logger.Log.Warn().
-				Err(err).
-				Msg("user-service is not ready")
+			logger.Log.Warn().Err(err).Msg("user-service is not ready")
+			http.Error(w, err.Error(), http.StatusServiceUnavailable)
+			return
+		}
+
+		// Ping redis
+		if err := redisCache.Ping(ctx); err != nil {
+			logger.Log.Warn().Err(err).Msg("redis is not ready")
 			http.Error(w, err.Error(), http.StatusServiceUnavailable)
 			return
 		}
@@ -86,7 +92,9 @@ func RegisterRoutes(cfg config.Config) *http.ServeMux {
 	})
 
 	mux.Handle("/api/auth/", middleware.CORSMiddleware(
-		http.StripPrefix("/api/", authProxy).ServeHTTP,
+		rateLimiter.RateLimit(
+			http.StripPrefix("/api/", authProxy).ServeHTTP,
+		),
 	))
 	mux.Handle("/api/user/", middleware.CORSMiddleware(
 		middleware.AuthMiddleware(

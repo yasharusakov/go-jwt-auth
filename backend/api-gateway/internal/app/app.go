@@ -1,6 +1,7 @@
 package app
 
 import (
+	"api-gateway/internal/cache"
 	"api-gateway/internal/config"
 	"api-gateway/internal/logger"
 	"api-gateway/internal/router"
@@ -20,7 +21,10 @@ func Run() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	handlers := router.RegisterRoutes(cfg)
+	redisCache := cache.NewRedisCache(cfg.RedisConfig)
+	defer redisCache.Close()
+
+	handlers := router.RegisterRoutes(redisCache, cfg)
 
 	srv := &server.HttpServer{}
 	serverErrors := make(chan error, 1)

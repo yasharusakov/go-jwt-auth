@@ -5,6 +5,10 @@ import (
 	"sync"
 )
 
+type RedisConfig struct {
+	RedisInternalURL string
+}
+
 type Config struct {
 	AppEnv                    string
 	ApiGatewayInternalPort    string
@@ -12,6 +16,7 @@ type Config struct {
 	ApiAuthServiceInternalURL string
 	ApiUserServiceInternalURL string
 	JWTAccessTokenSecret      string
+	RedisConfig               RedisConfig
 }
 
 var (
@@ -27,6 +32,9 @@ func LoadConfigFromEnv() Config {
 		ApiAuthServiceInternalURL: os.Getenv("API_AUTH_SERVICE_INTERNAL_URL"),
 		ApiUserServiceInternalURL: os.Getenv("API_USER_SERVICE_INTERNAL_URL"),
 		JWTAccessTokenSecret:      os.Getenv("JWT_ACCESS_TOKEN_SECRET"),
+		RedisConfig: RedisConfig{
+			RedisInternalURL: os.Getenv("REDIS_INTERNAL_URL"),
+		},
 	}
 }
 
