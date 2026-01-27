@@ -30,6 +30,7 @@ jobs:
         with:
           working-directory: backend/${{ matrix.service }}
           args: --timeout=5m
+          version: latest  # or specify a version like v1.65 when available
 
       - name: Test ${{ matrix.service }}
         working-directory: backend/${{ matrix.service }}
