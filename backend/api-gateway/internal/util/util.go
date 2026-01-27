@@ -2,6 +2,8 @@ package util
 
 import (
 	"fmt"
+	"net/http"
+	"strings"
 
 	"github.com/golang-jwt/jwt/v5"
 )
@@ -21,4 +23,8 @@ func ValidateToken(tokenStr string, secret []byte) (*jwt.RegisteredClaims, error
 	}
 
 	return claims, nil
+}
+
+func GetClientIP(r *http.Request) string {
+	return strings.TrimSpace(r.Header.Get("X-Real-IP"))
 }
