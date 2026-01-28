@@ -8,42 +8,25 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"net/http/httputil"
-	"net/url"
 	"strings"
 	"time"
+
+	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/proxy"
 )
 
-func newProxy(target string) *httputil.ReverseProxy {
-	parsedURL, err := url.Parse(target)
-	if err != nil {
-		logger.Log.Fatal().
-			Err(err).
-			Str("url", target).
-			Msg("error occurred while parsing URL")
-	}
-
-	return httputil.NewSingleHostReverseProxy(parsedURL)
-}
-
-func RegisterRoutes(redisCache cache.RedisCache, cfg config.Config) *http.ServeMux {
-	mux := http.NewServeMux()
-
-	rateLimiter := middleware.NewRateLimitMiddleware(redisCache)
-
-	authProxy := newProxy(cfg.ApiAuthServiceInternalURL)
-	userProxy := newProxy(cfg.ApiUserServiceInternalURL)
-
-	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+func SetupRoutes(app *fiber.App, redisCache cache.RedisCache, cfg config.Config) {
+	app.Get("/health", func(c *fiber.Ctx) error {
 		logger.Log.Info().Msg("Health check passed")
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("OK"))
+		return c.SendString("OK")
 	})
 
-	mux.HandleFunc("/ready", func(w http.ResponseWriter, r *http.Request) {
-		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+	app.Get("/ready", func(c *fiber.Ctx) error {
+		ctx, cancel := context.WithTimeout(c.Context(), 2*time.Second)
 		defer cancel()
 
+		// ==================================
+		// TODO: Rewrite to Fiber
 		check := func(target string) error {
 			baseURL := strings.TrimSuffix(target, "/api")
 
@@ -64,44 +47,49 @@ func RegisterRoutes(redisCache cache.RedisCache, cfg config.Config) *http.ServeM
 
 			return nil
 		}
+		// ==================================
 
-		// Check auth service readiness
+		// Check auth-service readiness
 		if err := check(cfg.ApiAuthServiceInternalURL); err != nil {
 			logger.Log.Warn().Err(err).Msg("auth-service is not ready")
-			http.Error(w, err.Error(), http.StatusServiceUnavailable)
-			return
+			return c.Status(fiber.StatusServiceUnavailable).SendString(err.Error())
 		}
 
-		// Check user service readiness
+		// Check user-service readiness
 		if err := check(cfg.ApiUserServiceInternalURL); err != nil {
 			logger.Log.Warn().Err(err).Msg("user-service is not ready")
-			http.Error(w, err.Error(), http.StatusServiceUnavailable)
-			return
+			return c.Status(fiber.StatusServiceUnavailable).SendString(err.Error())
 		}
 
 		// Ping redis
 		if err := redisCache.Ping(ctx); err != nil {
 			logger.Log.Warn().Err(err).Msg("redis is not ready")
-			http.Error(w, err.Error(), http.StatusServiceUnavailable)
-			return
+			return c.Status(fiber.StatusServiceUnavailable).SendString(err.Error())
 		}
 
 		logger.Log.Info().Msg("Ready check passed")
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("READY"))
+		return c.SendString("OK")
 	})
 
-	mux.Handle("/api/auth/", middleware.CORSMiddleware(
-		rateLimiter.RateLimit(
-			http.StripPrefix("/api/", authProxy).ServeHTTP,
-		),
-	))
+	auth := app.Group("/api/auth",
+		middleware.CORS(cfg),
+		middleware.RateLimit(redisCache),
+	)
+	auth.All("/*", proxyTo(cfg.ApiAuthServiceInternalURL))
 
-	mux.Handle("/api/user/", middleware.CORSMiddleware(
-		middleware.AuthMiddleware(
-			http.StripPrefix("/api/", userProxy).ServeHTTP,
-		),
-	))
+	user := app.Group("/api/user",
+		middleware.CORS(cfg),
+		middleware.Auth(cfg),
+	)
+	user.All("/*", proxyTo(cfg.ApiUserServiceInternalURL))
+}
 
-	return mux
+func proxyTo(target string) fiber.Handler {
+	// Remove /api from target if exists, since the path already contains /api/...
+	target = strings.TrimSuffix(target, "/api")
+
+	return func(c *fiber.Ctx) error {
+		url := target + c.OriginalURL()
+		return proxy.Do(c, url)
+	}
 }
