@@ -1,24 +1,43 @@
 package apperror
 
-import "errors"
+import "github.com/gofiber/fiber/v2"
 
-var (
-	// Request Errors
-	ErrInvalidRequestBody = errors.New("invalid request body")
-	ErrValidationFailed   = errors.New("validation failed")
+type AppError struct {
+	Code    int
+	Message string
+	Err     error
+}
 
-	// Auth Errors
-	ErrInvalidEmailOrPassword       = errors.New("invalid email or password")
-	ErrRefreshTokenNotFound         = errors.New("refresh token not found")
-	ErrInvalidOrExpiredRefreshToken = errors.New("invalid or expired refresh token")
+func (e *AppError) Error() string {
+	return e.Message
+}
 
-	// Do not show to client
-	ErrGeneratingAccessToken = errors.New("error generating access token")
-	ErrGeneratingTokens      = errors.New("error generating tokens")
+func (e *AppError) Unwrap() error {
+	return e.Err
+}
 
-	// User Errors
-	ErrUserAlreadyExists = errors.New("user already exists")
+// Client Errors
+func BadRequest(msg string) *AppError {
+	return &AppError{Code: fiber.StatusBadRequest, Message: msg}
+}
 
-	// Do not show to client (only in refresh)
-	ErrUserNotFound = errors.New("user not found")
-)
+func Unauthorized(msg string) *AppError {
+	return &AppError{Code: fiber.StatusUnauthorized, Message: msg}
+}
+
+func NotFound(msg string) *AppError {
+	return &AppError{Code: fiber.StatusNotFound, Message: msg}
+}
+
+func Conflict(msg string) *AppError {
+	return &AppError{Code: fiber.StatusConflict, Message: msg}
+}
+
+// Server Errors
+func Internal(err error) *AppError {
+	return &AppError{
+		Code:    fiber.StatusInternalServerError,
+		Message: "internal server error",
+		Err:     err,
+	}
+}

@@ -5,14 +5,6 @@ import (
 	"user-service/internal/repository"
 )
 
-//type UserService interface {
-//	GetUserByEmail(ctx context.Context, email string) (*model.User, error)
-//	GetUserByID(ctx context.Context, id string) (*model.UserWithoutPassword, error)
-//	CheckUserExistsByEmail(ctx context.Context, email string) (bool, error)
-//	RegisterUser(ctx context.Context, email string, hashedPassword []byte) (string, error)
-//	GetAllUsers(ctx context.Context) ([]model.UserWithoutPassword, error)
-//}
-
 type User struct {
 	ID       string `json:"id"`
 	Email    string `json:"email"`
@@ -33,7 +25,6 @@ type UserService interface {
 }
 
 type userService struct {
-	//repo repository.UserRepository
 	repo repository.UserGormRepository
 }
 

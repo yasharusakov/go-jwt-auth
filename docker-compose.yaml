@@ -186,7 +186,7 @@ services:
       - "${CLIENT_EXTERNAL_PORT}:${CLIENT_INTERNAL_PORT}"
     depends_on:
       api-gateway:
-        condition: service_healthy
+        condition: service_started
     volumes:
       - ./nginx.conf.template:/etc/nginx/templates/default.conf.template
     networks:

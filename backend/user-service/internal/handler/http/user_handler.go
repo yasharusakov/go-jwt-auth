@@ -1,13 +1,14 @@
 package httpHandler
 
 import (
-	"encoding/json"
-	"net/http"
+	"user-service/internal/logger"
 	"user-service/internal/service"
+
+	"github.com/gofiber/fiber/v2"
 )
 
 type Handlers interface {
-	GetAllUsers(w http.ResponseWriter, r *http.Request)
+	GetAllUsers(c *fiber.Ctx) error
 }
 
 type userHandler struct {
@@ -15,21 +16,19 @@ type userHandler struct {
 }
 
 func NewUserHandler(service service.UserService) Handlers {
-	return &userHandler{service}
+	return &userHandler{
+		service: service,
+	}
 }
 
-func (h *userHandler) GetAllUsers(w http.ResponseWriter, r *http.Request) {
-	users, err := h.service.GetAllUsers(r.Context())
-
+func (h *userHandler) GetAllUsers(c *fiber.Ctx) error {
+	users, err := h.service.GetAllUsers(c.Context())
 	if err != nil {
-		http.Error(w, "error: "+err.Error(), http.StatusInternalServerError)
-		return
+		logger.Log.Info().Err(err).Msg("Error retrieving all users")
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "error retrieving all users",
+		})
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	err = json.NewEncoder(w).Encode(users)
-	if err != nil {
-		http.Error(w, "error encoding response", http.StatusInternalServerError)
-		return
-	}
+	return c.JSON(users)
 }

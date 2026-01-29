@@ -7,15 +7,14 @@ import (
 	"auth-service/internal/logger"
 	"auth-service/internal/repository"
 	"auth-service/internal/router"
-	"auth-service/internal/server"
 	"auth-service/internal/service"
 	"auth-service/internal/storage"
 	"context"
-	"errors"
-	"net/http"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/gofiber/fiber/v2"
 )
 
 func Run() {
@@ -25,66 +24,59 @@ func Run() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	//postgres, err := storage.NewPostgres(ctx, cfg.Postgres)
 	postgresGORM, err := storage.NewPostgresGORM(ctx, cfg.Postgres)
 	if err != nil {
-		logger.Log.Fatal().
-			Err(err).
-			Msg("Failed to connect to Postgres")
+		logger.Log.Fatal().Err(err).Msg("Failed to connect to Postgres.")
 	}
-	defer func() {
-		logger.Log.Info().Msg("Closing postgres connection...")
-		postgresGORM.Close()
-	}()
+	defer postgresGORM.Close()
 
 	grpcUserClient, err := grpcClient.NewGRPCUserClient(cfg.GRPCUserServiceInternalURL)
 	if err != nil {
-		logger.Log.Fatal().
-			Err(err).
-			Msg("Failed to connect to gRPC user client")
+		logger.Log.Fatal().Err(err).Msg("Failed to connect to gRPC user client.")
 	}
-	defer func() {
-		logger.Log.Info().Msg("Closing gRPC user client...")
-		grpcUserClient.Close()
-	}()
+	defer grpcUserClient.Close()
 
-	tokenRepo := repository.NewTokenRepository(postgresGORM.DB, cfg)
+	tokenRepository := repository.NewTokenRepository(postgresGORM.DB, cfg)
 	tokenManager := service.NewTokenManager(cfg.JWT)
-	authService := service.NewAuthService(grpcUserClient, tokenRepo, tokenManager, cfg)
+	authService := service.NewAuthService(grpcUserClient, tokenRepository, tokenManager, cfg)
 	authHandler := handler.NewAuthHandler(authService, cfg)
-	routes := router.RegisterRoutes(authHandler, postgresGORM.DB, grpcUserClient)
 
-	httpServer := &server.HttpServer{}
-	serverErrors := make(chan error, 1)
+	app := fiber.New(fiber.Config{
+		ReadTimeout:           10 * time.Second,
+		WriteTimeout:          10 * time.Second,
+		IdleTimeout:           10 * time.Second,
+		DisableStartupMessage: cfg.AppEnv == "production",
+	})
+
+	router.SetupRoutes(app, authHandler, postgresGORM.DB, grpcUserClient)
+
+	serverError := make(chan error, 1)
 
 	go func() {
 		logger.Log.Info().
 			Str("port", cfg.ApiAuthServiceInternalPort).
-			Msg("Starting HTTP server...")
+			Msg("Starting Auth Service HTTP server...")
 
-		serverErrors <- httpServer.Run(cfg.ApiAuthServiceInternalPort, routes)
+		serverError <- app.Listen(":" + cfg.ApiAuthServiceInternalPort)
 	}()
 
 	select {
 	case <-ctx.Done():
-		logger.Log.Info().Msg("Shutdown signal received")
-	case err := <-serverErrors:
-		if !errors.Is(err, http.ErrServerClosed) {
-			logger.Log.Fatal().
-				Err(err).
-				Msg("Server error")
-		}
-		return
+		logger.Log.Info().Msg("Shutdown signal received.")
+	case err := <-serverError:
+		logger.Log.Error().Err(err).Msg("Auth Service HTTP server error.")
 	}
 
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	logger.Log.Info().Msg("Gracefully shutting down...")
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	if err = httpServer.Shutdown(shutdownCtx); err != nil {
-		logger.Log.Error().
-			Err(err).
-			Msg("Server shutdown error")
+	if err = app.ShutdownWithContext(shutdownCtx); err != nil {
+		logger.Log.Error().Err(err).Msg("Auth Service HTTP shutdown error.")
 	} else {
-		logger.Log.Info().Msg("Server shutdown gracefully")
+		logger.Log.Info().Msg("Auth Service HTTP shutdown gracefully.")
 	}
+
+	logger.Log.Info().Msg("Running cleanup tasks...")
 }

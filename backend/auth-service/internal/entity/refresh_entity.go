@@ -13,7 +13,3 @@ type RefreshToken struct {
 func (RefreshToken) TableName() string {
 	return "refresh_tokens"
 }
-
-//func (rt *RefreshToken) IsExpired() bool {
-//	return time.Now().After(rt.ExpiresAt)
-//}

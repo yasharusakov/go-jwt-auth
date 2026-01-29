@@ -3,47 +3,42 @@ package router
 import (
 	"context"
 
-	"github.com/gorilla/mux"
+	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
 
-	"net/http"
 	"time"
 	httpHandler "user-service/internal/handler/http"
 	"user-service/internal/logger"
 )
 
-func RegisterRoutes(handlers httpHandler.Handlers, db *gorm.DB) http.Handler {
-	m := mux.NewRouter()
-
-	m.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+func SetupRoutes(app *fiber.App, handlers httpHandler.Handlers, db *gorm.DB) {
+	app.Get("/health", func(c *fiber.Ctx) error {
 		logger.Log.Info().Msg("Health check passed")
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("OK"))
+		return c.SendString("OK")
 	})
 
-	m.HandleFunc("/ready", func(w http.ResponseWriter, r *http.Request) {
-		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+	app.Get("/ready", func(c *fiber.Ctx) error {
+		ctx, cancel := context.WithTimeout(c.Context(), 2*time.Second)
 		defer cancel()
 
 		sqlDB, err := db.WithContext(ctx).DB()
 		if err != nil {
-			logger.Log.Error().Err(err).Msg("database is not ready")
-			http.Error(w, "database is not ready", http.StatusServiceUnavailable)
-			return
+			logger.Log.Error().Err(err).Msg("Database is not ready")
+			return c.Status(fiber.StatusServiceUnavailable).SendString("Database is not ready")
 		}
 
 		if err := sqlDB.Ping(); err != nil {
-			logger.Log.Error().Err(err).Msg("database ping failed")
-			http.Error(w, "database is not ready", http.StatusServiceUnavailable)
-			return
+			logger.Log.Error().Err(err).Msg("Database ping failed")
+			return c.Status(fiber.StatusServiceUnavailable).SendString("Database is not ready")
 		}
 
 		logger.Log.Info().Msg("Ready check passed")
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("READY"))
+		return c.SendString("READY")
+
 	})
 
-	m.HandleFunc("/api/user/get-all", handlers.GetAllUsers).Methods("GET")
+	api := app.Group("/api")
+	user := api.Group("/user")
 
-	return m
+	user.Get("/get-all", handlers.GetAllUsers)
 }

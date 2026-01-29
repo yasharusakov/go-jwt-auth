@@ -2,22 +2,16 @@ package middleware
 
 import (
 	"api-gateway/internal/config"
-	"net/http"
+
+	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cors"
 )
 
-func CORSMiddleware(next http.HandlerFunc) http.HandlerFunc {
-	clientURL := config.GetConfig().ClientExternalURL
-	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", clientURL)
-		w.Header().Set("Access-Control-Allow-Credentials", "true")
-		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-
-		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-
-		next(w, r)
-	}
+func CORS(cfg config.Config) fiber.Handler {
+	return cors.New(cors.Config{
+		AllowOrigins:     cfg.ClientExternalURL,
+		AllowCredentials: true,
+		AllowMethods:     "GET,POST,PUT,DELETE,OPTIONS",
+		AllowHeaders:     "Content-Type,Authorization",
+	})
 }

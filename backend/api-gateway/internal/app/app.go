@@ -5,13 +5,12 @@ import (
 	"api-gateway/internal/config"
 	"api-gateway/internal/logger"
 	"api-gateway/internal/router"
-	"api-gateway/internal/server"
 	"context"
-	"errors"
-	"net/http"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/gofiber/fiber/v2"
 )
 
 func Run() {
@@ -24,40 +23,42 @@ func Run() {
 	redisCache := cache.NewRedisCache(cfg.RedisConfig)
 	defer redisCache.Close()
 
-	handlers := router.RegisterRoutes(redisCache, cfg)
+	app := fiber.New(fiber.Config{
+		WriteTimeout:          10 * time.Second,
+		ReadTimeout:           10 * time.Second,
+		IdleTimeout:           10 * time.Second,
+		DisableStartupMessage: cfg.AppEnv == "production",
+	})
 
-	srv := &server.HttpServer{}
-	serverErrors := make(chan error, 1)
+	router.SetupRoutes(app, redisCache, cfg)
+
+	serverError := make(chan error, 1)
 
 	go func() {
 		logger.Log.Info().
 			Str("port", cfg.ApiGatewayInternalPort).
-			Msg("starting HTTP server")
+			Msg("Starting API Gateway server...")
 
-		serverErrors <- srv.Run(cfg.ApiGatewayInternalPort, handlers)
+		serverError <- app.Listen(":" + cfg.ApiGatewayInternalPort)
 	}()
 
 	select {
 	case <-ctx.Done():
-		logger.Log.Info().Msg("shutting down HTTP server")
-	case err := <-serverErrors:
-		if !errors.Is(err, http.ErrServerClosed) {
-			logger.Log.Fatal().
-				Err(err).
-				Msg("server error")
-		}
-		return
+		logger.Log.Info().Msg("Shutdown signal received.")
+	case err := <-serverError:
+		logger.Log.Error().Err(err).Msg("API Gateway server error.")
 	}
+
+	logger.Log.Info().Msg("Gracefully shutting down...")
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	if err := srv.Shutdown(shutdownCtx); err != nil {
-		logger.Log.Error().
-			Err(err).
-			Msg("server shutdown error")
+	if err := app.ShutdownWithContext(shutdownCtx); err != nil {
+		logger.Log.Error().Err(err).Msg("API Gateway shutdown error.")
 	} else {
-		logger.Log.Info().Msg("server stopped gracefully")
+		logger.Log.Info().Msg("API Gateway stopped gracefully.")
 	}
 
+	logger.Log.Info().Msg("Running cleanup tasks...")
 }
