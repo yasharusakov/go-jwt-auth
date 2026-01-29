@@ -7,7 +7,6 @@ import (
 	"api-gateway/internal/middleware"
 	"context"
 	"fmt"
-	"net/http"
 	"strings"
 	"time"
 
@@ -25,29 +24,22 @@ func SetupRoutes(app *fiber.App, redisCache cache.RedisCache, cfg config.Config)
 		ctx, cancel := context.WithTimeout(c.Context(), 2*time.Second)
 		defer cancel()
 
-		// ==================================
-		// TODO: Rewrite to Fiber
 		check := func(target string) error {
 			baseURL := strings.TrimSuffix(target, "/api")
 
-			req, err := http.NewRequestWithContext(ctx, "GET", baseURL+"/ready", nil)
-			if err != nil {
-				return fmt.Errorf("failed to create request for %s: %w", baseURL, err)
+			agent := fiber.Get(baseURL + "/ready")
+
+			statusCode, _, errs := agent.Timeout(2 * time.Second).Bytes()
+			if len(errs) > 0 {
+				return fmt.Errorf("%s is not ready: %v", baseURL, errs[0])
 			}
 
-			resp, err := http.DefaultClient.Do(req)
-			if err != nil {
-				return fmt.Errorf("%s is not ready: %w", baseURL, err)
-			}
-			defer resp.Body.Close()
-
-			if resp.StatusCode != http.StatusOK {
-				return fmt.Errorf("%s is not ready: status %d", baseURL, resp.StatusCode)
+			if statusCode != fiber.StatusOK {
+				return fmt.Errorf("%s is not ready: status %d", baseURL, statusCode)
 			}
 
 			return nil
 		}
-		// ==================================
 
 		// Check auth-service readiness
 		if err := check(cfg.ApiAuthServiceInternalURL); err != nil {
