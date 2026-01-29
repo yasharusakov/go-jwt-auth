@@ -3,6 +3,7 @@ package service
 import (
 	grpcClient "auth-service/internal/client/grpc"
 	"auth-service/internal/config"
+	"auth-service/internal/logger"
 	"auth-service/internal/repository"
 	"context"
 	"fmt"
@@ -50,7 +51,8 @@ func NewAuthService(
 func (s *authService) Register(ctx context.Context, email, password string) (*AuthResult, error) {
 	exists, err := s.grpcUserClient.CheckUserExistsByEmail(ctx, email)
 	if err != nil {
-		return nil, fmt.Errorf("check user existence: %w", err)
+		logger.Log.Error().Err(err).Msg("error checking user existence")
+		return nil, fmt.Errorf("internal server error")
 	}
 	if exists.Exists {
 		return nil, fmt.Errorf("user already exists")
@@ -58,12 +60,14 @@ func (s *authService) Register(ctx context.Context, email, password string) (*Au
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
-		return nil, fmt.Errorf("hash password: %w", err)
+		logger.Log.Error().Err(err).Msg("error hashing password")
+		return nil, fmt.Errorf("internal server error")
 	}
 
 	userResp, err := s.grpcUserClient.RegisterUser(ctx, email, hashedPassword)
 	if err != nil {
-		return nil, fmt.Errorf("gRPC register: %w", err)
+		logger.Log.Error().Err(err).Msg("error gRPC register user")
+		return nil, fmt.Errorf("internal server error")
 	}
 
 	return s.createSession(ctx, userResp.Id, email)
@@ -75,7 +79,8 @@ func (s *authService) Login(ctx context.Context, email, password string) (*AuthR
 		if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
 			return nil, fmt.Errorf("invalid email or password")
 		}
-		return nil, fmt.Errorf("get user by email: %w", err)
+		logger.Log.Error().Err(err).Msg("error gRPC get user by email")
+		return nil, fmt.Errorf("internal server error")
 	}
 
 	err = bcrypt.CompareHashAndPassword([]byte(userResp.User.Password), []byte(password))
@@ -89,46 +94,36 @@ func (s *authService) Login(ctx context.Context, email, password string) (*AuthR
 func (s *authService) Refresh(ctx context.Context, refreshToken string) (*AuthResult, error) {
 	claims, err := s.tokenManager.ValidateRefreshToken(refreshToken)
 	if err != nil {
-		return nil, fmt.Errorf("invalid or expired refresh token: %w", err)
+		logger.Log.Error().Err(err).Msg("error validate refresh token")
+		return nil, fmt.Errorf("invalid or expired refresh token")
+	}
+
+	userID := claims.Subject
+
+	// Verify user exists
+	_, err = s.grpcUserClient.GetUserByID(ctx, userID)
+	if err != nil {
+		logger.Log.Error().Err(err).Msg("error gRPC get user by ID")
+		return nil, fmt.Errorf("user not found")
 	}
 
 	isExists, err := s.tokenRepo.IsRefreshTokenExists(ctx, refreshToken)
 	if err != nil {
-		return nil, fmt.Errorf("checking refresh token existence: %w", err)
+		logger.Log.Error().Err(err).Msg("error checking refresh token existence")
+		return nil, fmt.Errorf("internal server error")
 	}
 
 	if !isExists {
 		return nil, fmt.Errorf("invalid or expired refresh token")
 	}
 
-	userID := claims.Subject
-
 	err = s.tokenRepo.RemoveRefreshToken(ctx, refreshToken)
 	if err != nil {
-		return nil, fmt.Errorf("removing old refresh token failed: %w", err)
+		logger.Log.Error().Err(err).Msg("removing old refresh token failed")
+		return nil, fmt.Errorf("internal server error")
 	}
 
-	accessToken, refreshToken, err := s.tokenManager.GenerateTokens(userID)
-	if err != nil {
-		return nil, fmt.Errorf("error generating tokens: %w", err)
-	}
-
-	err = s.tokenRepo.SaveRefreshToken(ctx, userID, refreshToken)
-	if err != nil {
-		return nil, fmt.Errorf("saving refresh token failed: %w", err)
-	}
-
-	userData, err := s.grpcUserClient.GetUserByID(ctx, userID)
-	if err != nil {
-		return nil, fmt.Errorf("user not found: %w", err)
-	}
-
-	return &AuthResult{
-		AccessToken:  accessToken,
-		RefreshToken: refreshToken,
-		UserID:       userData.User.Id,
-		Email:        userData.User.Email,
-	}, nil
+	return s.createSession(ctx, userID, refreshToken)
 }
 
 func (s *authService) Logout(ctx context.Context, refreshToken string) error {
@@ -138,12 +133,14 @@ func (s *authService) Logout(ctx context.Context, refreshToken string) error {
 func (s *authService) createSession(ctx context.Context, userID, email string) (*AuthResult, error) {
 	accessToken, refreshToken, err := s.tokenManager.GenerateTokens(userID)
 	if err != nil {
-		return nil, fmt.Errorf("token generation failed: %w", err)
+		logger.Log.Error().Err(err).Msg("error generating tokens")
+		return nil, fmt.Errorf("internal server error")
 	}
 
 	err = s.tokenRepo.SaveRefreshToken(ctx, userID, refreshToken)
 	if err != nil {
-		return nil, fmt.Errorf("saving refresh token failed: %w", err)
+		logger.Log.Error().Err(err).Msg("error saving refresh token")
+		return nil, fmt.Errorf("internal server error")
 	}
 
 	return &AuthResult{

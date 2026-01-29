@@ -45,15 +45,7 @@ func (h *authHandler) Register(c *fiber.Ctx) error {
 		})
 	}
 
-	c.Cookie(&fiber.Cookie{
-		Name:     "refresh_token",
-		Value:    result.RefreshToken,
-		Expires:  time.Now().Add(h.cfg.JWT.JWTRefreshTokenExp),
-		HTTPOnly: true,
-		Path:     "/",
-		Secure:   h.cfg.AppEnv == "production",
-		SameSite: fiber.CookieSameSiteLaxMode,
-	})
+	h.setRefreshTokenCookie(c, result.RefreshToken)
 
 	return c.Status(fiber.StatusOK).JSON(dto.AuthResponse{
 		AccessToken: result.AccessToken,
@@ -80,15 +72,7 @@ func (h *authHandler) Login(c *fiber.Ctx) error {
 		})
 	}
 
-	c.Cookie(&fiber.Cookie{
-		Name:     "refresh_token",
-		Value:    result.RefreshToken,
-		Expires:  time.Now().Add(h.cfg.JWT.JWTRefreshTokenExp),
-		HTTPOnly: true,
-		Path:     "/",
-		Secure:   h.cfg.AppEnv == "production",
-		SameSite: fiber.CookieSameSiteLaxMode,
-	})
+	h.setRefreshTokenCookie(c, result.RefreshToken)
 
 	return c.Status(fiber.StatusOK).JSON(dto.AuthResponse{
 		AccessToken: result.AccessToken,
@@ -116,15 +100,7 @@ func (h *authHandler) Refresh(c *fiber.Ctx) error {
 		})
 	}
 
-	c.Cookie(&fiber.Cookie{
-		Name:     "refresh_token",
-		Value:    result.RefreshToken,
-		Expires:  time.Now().Add(h.cfg.JWT.JWTRefreshTokenExp),
-		HTTPOnly: true,
-		Path:     "/",
-		Secure:   h.cfg.AppEnv == "production",
-		SameSite: fiber.CookieSameSiteLaxMode,
-	})
+	h.setRefreshTokenCookie(c, result.RefreshToken)
 
 	return c.Status(fiber.StatusOK).JSON(dto.AuthResponse{
 		AccessToken: result.AccessToken,
@@ -144,6 +120,26 @@ func (h *authHandler) Logout(c *fiber.Ctx) error {
 
 	logger.Log.Info().Msg("user logged out")
 
+	h.removeRefreshTokenCookie(c)
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"message": "successfully logged out",
+	})
+}
+
+func (h *authHandler) setRefreshTokenCookie(c *fiber.Ctx, refreshToken string) {
+	c.Cookie(&fiber.Cookie{
+		Name:     "refresh_token",
+		Value:    refreshToken,
+		Expires:  time.Now().Add(h.cfg.JWT.JWTRefreshTokenExp),
+		HTTPOnly: true,
+		Path:     "/",
+		Secure:   h.cfg.AppEnv == "production",
+		SameSite: fiber.CookieSameSiteLaxMode,
+	})
+}
+
+func (h *authHandler) removeRefreshTokenCookie(c *fiber.Ctx) {
 	c.Cookie(&fiber.Cookie{
 		Name:     "refresh_token",
 		Value:    "",
@@ -153,9 +149,5 @@ func (h *authHandler) Logout(c *fiber.Ctx) error {
 		HTTPOnly: true,
 		Secure:   h.cfg.AppEnv == "production",
 		SameSite: fiber.CookieSameSiteLaxMode,
-	})
-
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"message": "successfully logged out",
 	})
 }
