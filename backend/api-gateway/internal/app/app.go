@@ -6,10 +6,11 @@ import (
 	"api-gateway/internal/logger"
 	"api-gateway/internal/router"
 	"context"
-	"github.com/gofiber/fiber/v2"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/gofiber/fiber/v2"
 )
 
 func Run() {
@@ -31,17 +32,23 @@ func Run() {
 
 	router.SetupRoutes(app, redisCache, cfg)
 
+	serverError := make(chan error, 1)
+
 	go func() {
 		logger.Log.Info().
-			Str("port", ":"+cfg.ApiGatewayInternalPort).
+			Str("port", cfg.ApiGatewayInternalPort).
 			Msg("Starting API Gateway server...")
 
-		if err := app.Listen(":" + cfg.ApiGatewayInternalPort); err != nil {
-			logger.Log.Panic().Err(err)
-		}
+		serverError <- app.Listen(":" + cfg.ApiGatewayInternalPort)
 	}()
 
-	<-ctx.Done()
+	select {
+	case <-ctx.Done():
+		logger.Log.Info().Msg("Shutdown signal received.")
+	case err := <-serverError:
+		logger.Log.Error().Err(err).Msg("API Gateway server error.")
+	}
+
 	logger.Log.Info().Msg("Gracefully shutting down...")
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -54,6 +61,4 @@ func Run() {
 	}
 
 	logger.Log.Info().Msg("Running cleanup tasks...")
-
-	logger.Log.Info().Msg("API Gateway was successful shutdown.")
 }
