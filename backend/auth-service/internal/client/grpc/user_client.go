@@ -7,8 +7,10 @@ import (
 	"fmt"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/status"
 )
 
 type UserService interface {
@@ -57,11 +59,9 @@ func (u *UserClient) GetUserByEmail(ctx context.Context, email string) (*userpb.
 		return nil, err
 	}
 	if resp.User == nil {
-		return nil, fmt.Errorf("user not found")
+		return nil, status.Error(codes.NotFound, "user not found")
 	}
-	return &userpb.GetUserByEmailResponse{
-		User: resp.User,
-	}, nil
+	return resp, nil
 }
 
 func (u *UserClient) GetUserByID(ctx context.Context, id string) (*userpb.GetUserByIDResponse, error) {
@@ -70,11 +70,9 @@ func (u *UserClient) GetUserByID(ctx context.Context, id string) (*userpb.GetUse
 		return nil, err
 	}
 	if resp.User == nil {
-		return nil, fmt.Errorf("user not found")
+		return nil, status.Error(codes.NotFound, "user not found")
 	}
-	return &userpb.GetUserByIDResponse{
-		User: resp.User,
-	}, nil
+	return resp, nil
 }
 
 func (u *UserClient) CheckUserExistsByEmail(ctx context.Context, email string) (*userpb.CheckUserExistsByEmailResponse, error) {
@@ -82,9 +80,7 @@ func (u *UserClient) CheckUserExistsByEmail(ctx context.Context, email string) (
 	if err != nil {
 		return nil, err
 	}
-	return &userpb.CheckUserExistsByEmailResponse{
-		Exists: resp.Exists,
-	}, nil
+	return resp, nil
 }
 
 func (u *UserClient) RegisterUser(ctx context.Context, email string, hashedPassword []byte) (*userpb.RegisterUserResponse, error) {
@@ -95,7 +91,5 @@ func (u *UserClient) RegisterUser(ctx context.Context, email string, hashedPassw
 	if err != nil {
 		return nil, err
 	}
-	return &userpb.RegisterUserResponse{
-		Id: resp.Id,
-	}, nil
+	return resp, nil
 }

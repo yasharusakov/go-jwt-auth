@@ -1,10 +1,12 @@
 package handler
 
 import (
+	"auth-service/internal/apperror"
 	"auth-service/internal/config"
 	"auth-service/internal/dto"
 	"auth-service/internal/logger"
 	"auth-service/internal/service"
+	"errors"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -34,19 +36,17 @@ func (h *authHandler) Register(c *fiber.Ctx) error {
 
 	if err := c.BodyParser(&req); err != nil {
 		logger.Log.Error().Err(err).Msg("failed to parse request body")
-		return c.SendStatus(fiber.StatusBadRequest)
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "invalid request body",
+		})
 	}
 
 	result, err := h.service.Register(c.Context(), req.Email, req.Password)
 	if err != nil {
-		logger.Log.Error().Err(err).Msg("failed to register user")
-		return c.Status(fiber.StatusConflict).JSON(fiber.Map{
-			"error": err.Error(),
-		})
+		return h.handleError(c, err)
 	}
 
 	h.setRefreshTokenCookie(c, result.RefreshToken)
-
 	return c.Status(fiber.StatusOK).JSON(dto.AuthResponse{
 		AccessToken: result.AccessToken,
 		User: dto.UserResponse{
@@ -61,19 +61,17 @@ func (h *authHandler) Login(c *fiber.Ctx) error {
 
 	if err := c.BodyParser(&req); err != nil {
 		logger.Log.Error().Err(err).Msg("failed to parse request body")
-		return c.SendStatus(fiber.StatusBadRequest)
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "invalid request body",
+		})
 	}
 
 	result, err := h.service.Login(c.Context(), req.Email, req.Password)
 	if err != nil {
-		logger.Log.Error().Err(err).Msg("failed to login")
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"error": err.Error(),
-		})
+		return h.handleError(c, err)
 	}
 
 	h.setRefreshTokenCookie(c, result.RefreshToken)
-
 	return c.Status(fiber.StatusOK).JSON(dto.AuthResponse{
 		AccessToken: result.AccessToken,
 		User: dto.UserResponse{
@@ -94,14 +92,10 @@ func (h *authHandler) Refresh(c *fiber.Ctx) error {
 
 	result, err := h.service.Refresh(c.Context(), cookie)
 	if err != nil {
-		logger.Log.Error().Err(err).Msg("failed to refresh tokens")
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"error": err.Error(),
-		})
+		return h.handleError(c, err)
 	}
 
 	h.setRefreshTokenCookie(c, result.RefreshToken)
-
 	return c.Status(fiber.StatusOK).JSON(dto.AuthResponse{
 		AccessToken: result.AccessToken,
 		User: dto.UserResponse{
@@ -121,7 +115,6 @@ func (h *authHandler) Logout(c *fiber.Ctx) error {
 	logger.Log.Info().Msg("user logged out")
 
 	h.removeRefreshTokenCookie(c)
-
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"message": "successfully logged out",
 	})
@@ -149,5 +142,25 @@ func (h *authHandler) removeRefreshTokenCookie(c *fiber.Ctx) {
 		HTTPOnly: true,
 		Secure:   h.cfg.AppEnv == "production",
 		SameSite: fiber.CookieSameSiteLaxMode,
+	})
+}
+
+func (h *authHandler) handleError(c *fiber.Ctx, err error) error {
+	var appErr *apperror.AppError
+	if errors.As(err, &appErr) {
+		// if got internal server error log the original error
+		if appErr.Code == 500 && appErr.Err != nil {
+			logger.Log.Error().Err(appErr.Err).Msg("internal server error")
+		}
+		// return the client error message without the original error
+		return c.Status(appErr.Code).JSON(fiber.Map{
+			"error": appErr.Message,
+		})
+	}
+
+	// if the error is not an AppError
+	logger.Log.Error().Err(err).Msg("unexpected error")
+	return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+		"error": "internal server error",
 	})
 }
