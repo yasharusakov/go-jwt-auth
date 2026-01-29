@@ -2,6 +2,7 @@ package grpcClient
 
 import (
 	userpb "auth-service/internal/genproto/user/v1"
+	"auth-service/internal/logger"
 	"context"
 	"fmt"
 
@@ -46,6 +47,7 @@ func (u *UserClient) Ping(ctx context.Context) error {
 }
 
 func (u *UserClient) Close() {
+	logger.Log.Info().Msg("Closing gRPC user client...")
 	_ = u.conn.Close()
 }
 

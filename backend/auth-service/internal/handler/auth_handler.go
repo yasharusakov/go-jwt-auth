@@ -1,111 +1,61 @@
 package handler
 
 import (
-	"auth-service/internal/apperror"
 	"auth-service/internal/config"
 	"auth-service/internal/dto"
-	"auth-service/internal/httpresponse"
 	"auth-service/internal/logger"
 	"auth-service/internal/service"
-	"auth-service/internal/util"
-	"encoding/json"
-	"errors"
-	"fmt"
-	"net/http"
+	"time"
 
-	"github.com/go-playground/validator/v10"
+	"github.com/gofiber/fiber/v2"
 )
 
 type AuthHandler interface {
-	Register(w http.ResponseWriter, r *http.Request)
-	Login(w http.ResponseWriter, r *http.Request)
-	Refresh(w http.ResponseWriter, r *http.Request)
-	Logout(w http.ResponseWriter, r *http.Request)
+	Register(c *fiber.Ctx) error
+	Login(c *fiber.Ctx) error
+	Refresh(c *fiber.Ctx) error
+	Logout(c *fiber.Ctx) error
 }
 
 type authHandler struct {
-	service   service.AuthService
-	validator *validator.Validate
-	cfg       config.Config
+	service service.AuthService
+	cfg     config.Config
 }
 
 func NewAuthHandler(service service.AuthService, cfg config.Config) AuthHandler {
 	return &authHandler{
-		service:   service,
-		validator: validator.New(),
-		cfg:       cfg,
+		service: service,
+		cfg:     cfg,
 	}
 }
 
-func (h *authHandler) decodeAndValidate(r *http.Request, dst any) error {
-	if err := json.NewDecoder(r.Body).Decode(dst); err != nil {
-		return fmt.Errorf("%w: %w", apperror.ErrInvalidRequestBody, err)
-	}
-	if err := h.validator.Struct(dst); err != nil {
-		var validationErrors validator.ValidationErrors
-		if errors.As(err, &validationErrors) {
-			return fmt.Errorf("%w: %w", apperror.ErrValidationFailed, validationErrors)
-		}
-		return apperror.ErrValidationFailed
-	}
-	return nil
-}
-
-func (h *authHandler) respondWithError(err error, w http.ResponseWriter) {
-	switch {
-	case errors.Is(err, apperror.ErrUserAlreadyExists):
-		httpresponse.WriteError(w, "user already exists", http.StatusConflict)
-	case errors.Is(err, apperror.ErrInvalidEmailOrPassword):
-		httpresponse.WriteError(w, "invalid email or password", http.StatusUnauthorized)
-	case errors.Is(err, apperror.ErrRefreshTokenNotFound):
-		httpresponse.WriteError(w, "refresh token not found", http.StatusUnauthorized)
-	case errors.Is(err, apperror.ErrInvalidOrExpiredRefreshToken):
-		httpresponse.WriteError(w, "invalid or expired refresh token", http.StatusUnauthorized)
-	case errors.Is(err, apperror.ErrUserNotFound):
-		httpresponse.WriteError(w, "user not found", http.StatusUnauthorized)
-	case errors.Is(err, apperror.ErrValidationFailed), errors.Is(err, apperror.ErrInvalidRequestBody):
-		httpresponse.WriteError(w, err.Error(), http.StatusBadRequest)
-	default:
-		logger.Log.Error().Err(err).Msg("internal server error")
-		httpresponse.WriteError(w, "internal server error", http.StatusInternalServerError)
-	}
-}
-
-// Register godoc
-// @Summary      Register a new user
-// @Description  Creates a new user account with the provided email and password.
-// @Tags         auth
-// @Accept       json
-// @Produce      json
-// @Param        request body dto.RegisterRequest true "Email и Password"
-// @Success      200 {object} dto.AuthResponse "Successful registration"
-// @Failure      400 {object} map[string]string "Validation error"
-// @Failure      401 {object} map[string]string "Invalid email or password"
-// @Failure      409 {object} map[string]string "User already exists"
-// @Failure      500 {object} map[string]string "Internal server error"
-// @Router       /register [post]
-func (h *authHandler) Register(w http.ResponseWriter, r *http.Request) {
+func (h *authHandler) Register(c *fiber.Ctx) error {
 	var req dto.RegisterRequest
-	if err := h.decodeAndValidate(r, &req); err != nil {
-		h.respondWithError(err, w)
-		return
+
+	if err := c.BodyParser(&req); err != nil {
+		logger.Log.Error().Err(err).Msg("failed to parse request body")
+		return c.SendStatus(fiber.StatusBadRequest)
 	}
 
-	result, err := h.service.Register(r.Context(), req.Email, req.Password)
-
+	result, err := h.service.Register(c.Context(), req.Email, req.Password)
 	if err != nil {
-		h.respondWithError(err, w)
-		return
+		logger.Log.Error().Err(err).Msg("failed to register user")
+		return c.Status(fiber.StatusConflict).JSON(fiber.Map{
+			"error": err.Error(),
+		})
 	}
 
-	logger.Log.Info().
-		Str("id", result.UserID).
-		Str("email", result.Email).
-		Msg("user registered")
+	c.Cookie(&fiber.Cookie{
+		Name:     "refresh_token",
+		Value:    result.RefreshToken,
+		Expires:  time.Now().Add(h.cfg.JWT.JWTRefreshTokenExp),
+		HTTPOnly: true,
+		Path:     "/",
+		Secure:   h.cfg.AppEnv == "production",
+		SameSite: fiber.CookieSameSiteLaxMode,
+	})
 
-	util.SetRefreshTokenCookie(w, result.RefreshToken, h.cfg.JWT.JWTRefreshTokenExp, h.cfg.AppEnv == "production")
-
-	httpresponse.WriteJSON(w, http.StatusOK, dto.AuthResponse{
+	return c.Status(fiber.StatusOK).JSON(dto.AuthResponse{
 		AccessToken: result.AccessToken,
 		User: dto.UserResponse{
 			ID:    result.UserID,
@@ -114,43 +64,33 @@ func (h *authHandler) Register(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// Login godoc
-// @Summary      User login
-// @Description  Authenticates a user with email and password.
-// @Tags         auth
-// @Accept       json
-// @Produce      json
-// @Param        request body dto.LoginRequest true "Credentials"
-// @Success      200 {object} dto.AuthResponse "Successful login"
-// @Failure      400 {object} map[string]string "Validation error"
-// @Failure      401 {object} map[string]string "Invalid email or password"
-// @Failure      500 {object} map[string]string "Internal server error"
-// @Router       /login [post]
-func (h *authHandler) Login(w http.ResponseWriter, r *http.Request) {
+func (h *authHandler) Login(c *fiber.Ctx) error {
 	var req dto.LoginRequest
-	if err := h.decodeAndValidate(r, &req); err != nil {
-		h.respondWithError(err, w)
-		return
+
+	if err := c.BodyParser(&req); err != nil {
+		logger.Log.Error().Err(err).Msg("failed to parse request body")
+		return c.SendStatus(fiber.StatusBadRequest)
 	}
 
-	result, err := h.service.Login(r.Context(), req.Email, req.Password)
-
+	result, err := h.service.Login(c.Context(), req.Email, req.Password)
 	if err != nil {
-		logger.Log.Warn().
-			Str("email", req.Email).
-			Msg("login failed")
-		h.respondWithError(err, w)
-		return
+		logger.Log.Error().Err(err).Msg("failed to login")
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": err.Error(),
+		})
 	}
 
-	logger.Log.Info().
-		Str("id", result.UserID).
-		Str("email", result.Email).
-		Msg("user logged in")
+	c.Cookie(&fiber.Cookie{
+		Name:     "refresh_token",
+		Value:    result.RefreshToken,
+		Expires:  time.Now().Add(h.cfg.JWT.JWTRefreshTokenExp),
+		HTTPOnly: true,
+		Path:     "/",
+		Secure:   h.cfg.AppEnv == "production",
+		SameSite: fiber.CookieSameSiteLaxMode,
+	})
 
-	util.SetRefreshTokenCookie(w, result.RefreshToken, h.cfg.JWT.JWTRefreshTokenExp, h.cfg.AppEnv == "production")
-
-	httpresponse.WriteJSON(w, http.StatusOK, dto.AuthResponse{
+	return c.Status(fiber.StatusOK).JSON(dto.AuthResponse{
 		AccessToken: result.AccessToken,
 		User: dto.UserResponse{
 			ID:    result.UserID,
@@ -159,36 +99,34 @@ func (h *authHandler) Login(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// Refresh godoc
-// @Summary      Update tokens
-// @Description  Generates new access and refresh tokens using a valid refresh token from cookies.
-// @Tags         auth
-// @Produce      json
-// @Success      200 {object} dto.AuthResponse "New tokens"
-// @Failure      401 {object} map[string]string "Refresh token invalid or expired"
-// @Failure      500 {object} map[string]string "Internal server error"
-// @Router       /refresh [post]
-func (h *authHandler) Refresh(w http.ResponseWriter, r *http.Request) {
-	cookie, err := r.Cookie("refresh_token")
-	if err != nil {
-		logger.Log.Warn().
-			Msg("refresh token not found")
-		httpresponse.WriteError(w, "refresh token not found", http.StatusUnauthorized)
-		return
+func (h *authHandler) Refresh(c *fiber.Ctx) error {
+	cookie := c.Cookies("refresh_token")
+	if cookie == "" {
+		logger.Log.Warn().Msg("refresh token not found")
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "refresh token not found",
+		})
 	}
 
-	result, err := h.service.Refresh(r.Context(), cookie.Value)
-
+	result, err := h.service.Refresh(c.Context(), cookie)
 	if err != nil {
-		logger.Log.Warn().
-			Msg("refresh token invalid or expired")
-		h.respondWithError(err, w)
-		return
+		logger.Log.Error().Err(err).Msg("failed to refresh tokens")
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": err.Error(),
+		})
 	}
 
-	util.SetRefreshTokenCookie(w, result.RefreshToken, h.cfg.JWT.JWTRefreshTokenExp, h.cfg.AppEnv == "production")
+	c.Cookie(&fiber.Cookie{
+		Name:     "refresh_token",
+		Value:    result.RefreshToken,
+		Expires:  time.Now().Add(h.cfg.JWT.JWTRefreshTokenExp),
+		HTTPOnly: true,
+		Path:     "/",
+		Secure:   h.cfg.AppEnv == "production",
+		SameSite: fiber.CookieSameSiteLaxMode,
+	})
 
-	httpresponse.WriteJSON(w, http.StatusOK, dto.AuthResponse{
+	return c.Status(fiber.StatusOK).JSON(dto.AuthResponse{
 		AccessToken: result.AccessToken,
 		User: dto.UserResponse{
 			ID:    result.UserID,
@@ -197,21 +135,27 @@ func (h *authHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// Logout godoc
-// @Summary      Logout user
-// @Description  Removes the refresh token cookies and invalidates the refresh token from PostgreSQL.
-// @Tags         auth
-// @Produce      json
-// @Success      200 {object} map[string]string "Successful logout"
-// @Router       /logout [post]
-func (h *authHandler) Logout(w http.ResponseWriter, r *http.Request) {
-	cookie, err := r.Cookie("refresh_token")
+func (h *authHandler) Logout(c *fiber.Ctx) error {
+	cookie := c.Cookies("refresh_token")
 
-	if err == nil {
-		_ = h.service.Logout(r.Context(), cookie.Value)
+	if cookie != "" {
+		_ = h.service.Logout(c.Context(), cookie)
 	}
 
 	logger.Log.Info().Msg("user logged out")
-	util.RemoveRefreshTokenCookie(w, h.cfg.AppEnv == "production")
-	w.WriteHeader(http.StatusOK)
+
+	c.Cookie(&fiber.Cookie{
+		Name:     "refresh_token",
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1,
+		Expires:  time.Unix(0, 0),
+		HTTPOnly: true,
+		Secure:   h.cfg.AppEnv == "production",
+		SameSite: fiber.CookieSameSiteLaxMode,
+	})
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"message": "successfully logged out",
+	})
 }

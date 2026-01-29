@@ -8,56 +8,55 @@ import (
 	"net/http"
 	"time"
 
-	_ "auth-service/docs"
-
-	"github.com/gorilla/mux"
-	httpSwagger "github.com/swaggo/http-swagger"
+	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
 )
 
-func RegisterRoutes(handlers handler.AuthHandler, db *gorm.DB, grpcUserClient grpcClient.UserService) http.Handler {
-	m := mux.NewRouter()
-
-	m.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+func SetupRoutes(
+	app *fiber.App,
+	handlers handler.AuthHandler,
+	db *gorm.DB,
+	grpcUserClient grpcClient.UserService,
+) {
+	app.Get("/health", func(c *fiber.Ctx) error {
 		logger.Log.Info().Msg("Health check passed")
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("OK"))
-	}).Methods("GET")
+		return c.SendStatus(http.StatusOK)
+	})
 
-	m.HandleFunc("/ready", func(w http.ResponseWriter, r *http.Request) {
-		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+	app.Get("/ready", func(c *fiber.Ctx) error {
+		ctx, cancel := context.WithTimeout(c.Context(), 2*time.Second)
 		defer cancel()
 
 		sqlDB, err := db.WithContext(ctx).DB()
 		if err != nil {
-			logger.Log.Error().Err(err).Msg("database is not ready")
-			http.Error(w, "database is not ready", http.StatusServiceUnavailable)
-			return
+			logger.Log.Error().Err(err).Msg("Database is not ready")
+			return c.Status(http.StatusServiceUnavailable).SendString("Database is not ready")
 		}
 
 		if err := sqlDB.Ping(); err != nil {
-			logger.Log.Error().Err(err).Msg("database ping failed")
-			http.Error(w, "database is not ready", http.StatusServiceUnavailable)
-			return
+			logger.Log.Error().Err(err).Msg("Database ping failed")
+			return c.Status(http.StatusServiceUnavailable).SendString("Database is not ready")
 		}
 
 		if err := grpcUserClient.Ping(ctx); err != nil {
 			logger.Log.Error().Err(err).Msg("gRPC user client ping failed")
-			http.Error(w, "gRPC user client not ready", http.StatusServiceUnavailable)
-			return
+			return c.Status(http.StatusServiceUnavailable).SendString("gRPC user client is not ready")
 		}
 
 		logger.Log.Info().Msg("Ready check passed")
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("READY"))
-	}).Methods("GET")
 
-	m.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
+		return c.SendStatus(http.StatusOK)
+	})
 
-	m.HandleFunc("/api/auth/register", handlers.Register).Methods("POST")
-	m.HandleFunc("/api/auth/login", handlers.Login).Methods("POST")
-	m.HandleFunc("/api/auth/refresh", handlers.Refresh).Methods("GET")
-	m.HandleFunc("/api/auth/logout", handlers.Logout).Methods("POST")
+	app.Get("/swagger", func(c *fiber.Ctx) error {
+		return c.Redirect("/swagger/index.html")
+	})
 
-	return m
+	api := app.Group("/api")
+	auth := api.Group("/auth")
+
+	auth.Post("/register", handlers.Register)
+	auth.Post("/login", handlers.Login)
+	auth.Get("/refresh", handlers.Refresh)
+	auth.Post("/logout", handlers.Logout)
 }

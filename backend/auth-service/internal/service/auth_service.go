@@ -1,7 +1,6 @@
 package service
 
 import (
-	"auth-service/internal/apperror"
 	grpcClient "auth-service/internal/client/grpc"
 	"auth-service/internal/config"
 	"auth-service/internal/repository"
@@ -54,7 +53,7 @@ func (s *authService) Register(ctx context.Context, email, password string) (*Au
 		return nil, fmt.Errorf("check user existence: %w", err)
 	}
 	if exists.Exists {
-		return nil, apperror.ErrUserAlreadyExists
+		return nil, fmt.Errorf("user already exists")
 	}
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
@@ -74,14 +73,14 @@ func (s *authService) Login(ctx context.Context, email, password string) (*AuthR
 	userResp, err := s.grpcUserClient.GetUserByEmail(ctx, email)
 	if err != nil {
 		if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
-			return nil, apperror.ErrInvalidEmailOrPassword
+			return nil, fmt.Errorf("invalid email or password")
 		}
 		return nil, fmt.Errorf("get user by email: %w", err)
 	}
 
 	err = bcrypt.CompareHashAndPassword([]byte(userResp.User.Password), []byte(password))
 	if err != nil {
-		return nil, apperror.ErrInvalidEmailOrPassword
+		return nil, fmt.Errorf("invalid email or password")
 	}
 
 	return s.createSession(ctx, userResp.User.Id, email)
@@ -90,7 +89,7 @@ func (s *authService) Login(ctx context.Context, email, password string) (*AuthR
 func (s *authService) Refresh(ctx context.Context, refreshToken string) (*AuthResult, error) {
 	claims, err := s.tokenManager.ValidateRefreshToken(refreshToken)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %w", apperror.ErrInvalidOrExpiredRefreshToken, err)
+		return nil, fmt.Errorf("invalid or expired refresh token: %w", err)
 	}
 
 	isExists, err := s.tokenRepo.IsRefreshTokenExists(ctx, refreshToken)
@@ -99,7 +98,7 @@ func (s *authService) Refresh(ctx context.Context, refreshToken string) (*AuthRe
 	}
 
 	if !isExists {
-		return nil, apperror.ErrInvalidOrExpiredRefreshToken
+		return nil, fmt.Errorf("invalid or expired refresh token")
 	}
 
 	userID := claims.Subject
@@ -111,7 +110,7 @@ func (s *authService) Refresh(ctx context.Context, refreshToken string) (*AuthRe
 
 	accessToken, refreshToken, err := s.tokenManager.GenerateTokens(userID)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %w", apperror.ErrGeneratingTokens, err)
+		return nil, fmt.Errorf("error generating tokens: %w", err)
 	}
 
 	err = s.tokenRepo.SaveRefreshToken(ctx, userID, refreshToken)
@@ -121,7 +120,7 @@ func (s *authService) Refresh(ctx context.Context, refreshToken string) (*AuthRe
 
 	userData, err := s.grpcUserClient.GetUserByID(ctx, userID)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %w", apperror.ErrUserNotFound, err)
+		return nil, fmt.Errorf("user not found: %w", err)
 	}
 
 	return &AuthResult{
