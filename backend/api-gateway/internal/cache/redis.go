@@ -12,7 +12,7 @@ import (
 type RedisCache interface {
 	CheckRateLimit(ctx context.Context, ip string) (bool, error)
 	Ping(ctx context.Context) error
-	Close() error
+	Close()
 }
 
 type redisCache struct {
@@ -51,7 +51,9 @@ func (r *redisCache) Ping(ctx context.Context) error {
 	return r.cache.Ping(ctx).Err()
 }
 
-func (r *redisCache) Close() error {
+func (r *redisCache) Close() {
 	logger.Log.Info().Msg("closing redis cache connection")
-	return r.cache.Close()
+	if err := r.cache.Close(); err != nil {
+		logger.Log.Error().Err(err).Msg("error closing redis cache connection")
+	}
 }
