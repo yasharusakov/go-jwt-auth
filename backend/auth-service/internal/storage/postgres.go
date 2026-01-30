@@ -45,12 +45,16 @@ func NewPostgresGORM(ctx context.Context, cfg config.PostgresConfig) (*PostgresG
 	return &PostgresGORM{DB: db}, nil
 }
 
-func (p *PostgresGORM) Close() error {
+func (p *PostgresGORM) Close() {
 	sqlDB, err := p.DB.DB()
 	if err != nil {
-		return err
+		logger.Log.Fatal().Err(err).Msg("failed to close database connection.")
 	}
 
 	logger.Log.Info().Msg("Closing postgres connection...")
-	return sqlDB.Close()
+
+	if err := sqlDB.Close(); err != nil {
+		logger.Log.Fatal().Err(err).Msg("Error closing postgres connection.")
+	}
+	logger.Log.Info().Msg("Database connection closed.")
 }

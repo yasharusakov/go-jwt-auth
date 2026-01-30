@@ -2,11 +2,32 @@ name: CI pipeline
 
 on:
   push:
-    branches: [ "main", "master", "dev" ]
+    branches: [ "main", "master", "dev", "ci/setup" ]
   pull_request:
-    branches: [ "main", "master", "dev" ]
+    branches: [ "main", "master", "dev", "ci/setup" ]
 
 jobs:
+  lint:
+    name: Lint Code
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [ backend/api-gateway, backend/auth-service, backend/user-service ]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+
+      - name: Golangci-lint
+        uses: golangci/golangci-lint-action@v9.2.0
+        with:
+          working-directory: ${{ matrix.service }}
+
   test:
     name: Run Tests
     runs-on: ubuntu-latest
