@@ -2,8 +2,6 @@ package app
 
 import (
 	"context"
-	"errors"
-	"net/http"
 	"os/signal"
 	"sync"
 	"syscall"
@@ -18,7 +16,7 @@ import (
 	"user-service/internal/service"
 	"user-service/internal/storage"
 
-	"google.golang.org/grpc"
+	"github.com/gofiber/fiber/v2"
 )
 
 func Run() {
@@ -28,32 +26,33 @@ func Run() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	//postgres, err := storage.NewPostgres(ctx, cfg.Postgres)
 	postgresGORM, err := storage.NewPostgresGORM(ctx, cfg.Postgres)
 	if err != nil {
-		logger.Log.Fatal().
-			Err(err).
-			Msg("Error occurred while initializing postgres")
+		logger.Log.Fatal().Err(err).Msg("Error occurred while initializing postgres")
 	}
-	defer func() {
-		logger.Log.Info().Msg("Closing postgres connection...")
-		postgresGORM.Close()
-	}()
+	defer postgresGORM.Close()
 
-	//repositories := repository.NewUserRepository(postgres)
 	userRepository := repository.NewUserGormRepository(postgresGORM.DB)
 	userService := service.NewUserService(userRepository)
 
-	userHttpHandler := httpHandler.NewUserHandler(userService)
+	userHttpHandlers := httpHandler.NewUserHandler(userService)
 	userGrpcHandlers := grpcHandler.NewUserHandler(userService)
-	routes := router.RegisterRoutes(userHttpHandler, postgresGORM.DB)
 
-	httpServer := &server.HttpServer{}
+	app := fiber.New(fiber.Config{
+		ReadTimeout:           10 * time.Second,
+		WriteTimeout:          10 * time.Second,
+		IdleTimeout:           10 * time.Second,
+		DisableStartupMessage: cfg.AppEnv == "production",
+	})
+
+	router.SetupRoutes(app, userHttpHandlers, postgresGORM.DB)
+
 	grpcServer := &server.GRPCServer{}
 
 	var wg sync.WaitGroup
 	serverErrors := make(chan error, 2)
 
+	// gRPC server
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -61,11 +60,10 @@ func Run() {
 			Str("port", cfg.GRPCUserServiceInternalPort).
 			Msg("Starting gRPC server...")
 
-		if runErr := grpcServer.Run(cfg.GRPCUserServiceInternalPort, userGrpcHandlers); runErr != nil && !errors.Is(runErr, grpc.ErrServerStopped) {
-			serverErrors <- runErr
-		}
+		serverErrors <- grpcServer.Run(cfg.GRPCUserServiceInternalPort, userGrpcHandlers)
 	}()
 
+	// HTTP server (Fiber)
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -73,29 +71,31 @@ func Run() {
 			Str("port", cfg.ApiUserServiceInternalPort).
 			Msg("Starting HTTP server...")
 
-		if runErr := httpServer.Run(cfg.ApiUserServiceInternalPort, routes); runErr != nil && !errors.Is(runErr, http.ErrServerClosed) {
-			serverErrors <- runErr
-		}
+		serverErrors <- app.Listen(":" + cfg.ApiUserServiceInternalPort)
 	}()
 
 	select {
 	case <-ctx.Done():
-		logger.Log.Info().Msg("Shutdown signal received")
+		logger.Log.Info().Msg("Shutdown signal received.")
 	case err = <-serverErrors:
-		logger.Log.Error().Err(err).Msg("Server error received")
+		logger.Log.Error().Err(err).Msg("Server error received.")
 		stop()
 	}
+
+	logger.Log.Info().Msg("Gracefully shutting down...")
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	if err = httpServer.Shutdown(shutdownCtx); err != nil {
-		logger.Log.Info().Err(err).Msg("HTTP server shutdown error")
+	if err = app.ShutdownWithContext(shutdownCtx); err != nil {
+		logger.Log.Error().Err(err).Msg("User Service HTTP server shutdown error.")
 	} else {
-		logger.Log.Info().Msg("HTTP server shutdown gracefully")
+		logger.Log.Info().Msg("User Service HTTP server stopped gracefully.")
 	}
 
 	grpcServer.Shutdown(shutdownCtx)
 
 	wg.Wait()
+
+	logger.Log.Info().Msg("Running cleanup tasks...")
 }
