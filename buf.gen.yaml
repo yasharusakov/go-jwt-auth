@@ -1,23 +1,31 @@
 version: v2
+managed:
+    enabled: true
+    override:
+      - file_option: go_package_prefix
+        value: go-jwt-auth/gen
 plugins:
   # auth-service
   # 1. Generating Go structures
-  - local: protoc-gen-go
+  - remote: buf.build/protocolbuffers/go
     out: backend/auth-service/internal/genproto
     opt: paths=source_relative
 
   # 2. Generating gRPC client/server
-  - local: protoc-gen-go-grpc
+  - remote: buf.build/grpc/go
     out: backend/auth-service/internal/genproto
     opt: paths=source_relative
 
   # user-service
   # 1. Generating Go structures
-  - local: protoc-gen-go
+  - remote: buf.build/protocolbuffers/go
     out: backend/user-service/internal/genproto
     opt: paths=source_relative
 
   # 2. Generating gRPC client/server
-  - local: protoc-gen-go-grpc
+  - remote: buf.build/grpc/go
     out: backend/user-service/internal/genproto
     opt: paths=source_relative
+
+inputs:
+    - directory: proto
