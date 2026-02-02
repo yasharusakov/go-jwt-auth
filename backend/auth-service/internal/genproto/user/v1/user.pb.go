@@ -555,7 +555,8 @@ const file_user_v1_user_proto_rawDesc = "" +
 	"\vGetUserByID\x12\x1b.user.v1.GetUserByIDRequest\x1a\x1c.user.v1.GetUserByIDResponse\x12i\n" +
 	"\x16CheckUserExistsByEmail\x12&.user.v1.CheckUserExistsByEmailRequest\x1a'.user.v1.CheckUserExistsByEmailResponse\x12K\n" +
 	"\fRegisterUser\x12\x1c.user.v1.RegisterUserRequest\x1a\x1d.user.v1.RegisterUserResponse\x12H\n" +
-	"\vGetAllUsers\x12\x1b.user.v1.GetAllUsersRequest\x1a\x1c.user.v1.GetAllUsersResponseB\x14Z\x12genproto/v1;userv1b\x06proto3"
+	"\vGetAllUsers\x12\x1b.user.v1.GetAllUsersRequest\x1a\x1c.user.v1.GetAllUsersResponseBu\n" +
+	"\vcom.user.v1B\tUserProtoP\x01Z\x1ego-jwt-auth/gen/user/v1;userv1\xa2\x02\x03UXX\xaa\x02\aUser.V1\xca\x02\aUser\\V1\xe2\x02\x13User\\V1\\GPBMetadata\xea\x02\bUser::V1b\x06proto3"
 
 var (
 	file_user_v1_user_proto_rawDescOnce sync.Once
