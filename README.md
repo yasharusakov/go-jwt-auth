@@ -45,12 +45,6 @@ curl -X POST http://localhost/api/auth/register \
 }
 ```
 
-## 🛠 Tech Stack
-
-- **Backend:** Go, Gorilla Mux, gRPC, GORM, PostgreSQL, Redis, JWT
-- **Frontend:** React, TypeScript, Redux Toolkit, Vite
-- **Infra:** Docker, Nginx, Buf (protobuf)
-
 ## 📁 Project Structure
 
 ```
@@ -99,5 +93,6 @@ After running `make docker-run`, open in your browser:
 - **Health Check:** [http://localhost:8080/health](http://localhost:8080/health)
 
 ## 👤 Author
+
 
 [yasharusakov](https://github.com/yasharusakov)
