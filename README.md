@@ -5,9 +5,42 @@ A full-stack JWT authentication system built with microservices architecture.
 ## 🏗 Architecture
 
 ```
-Frontend (React) → Nginx → API Gateway → Auth Service ←→ User Service
-                                ↓            ↓               ↓
-                              Redis      PostgreSQL      PostgreSQL
+                 Browser
+                    │
+                    │ HTTP
+                    ▼
+          ┌─────────────────┐
+          │      Caddy      │
+          │ (Reverse Proxy) │
+          └────────┬────────┘
+                   │ HTTP
+                   ▼
+          ┌──────────────────────────┐
+          │          Nginx           │
+          │  ┌────────────────────┐  │
+          │  │   React Frontend   │  │
+          │  │    (TypeScript)    │  │
+          │  └────────────────────┘  │
+          │                          │
+          └────────────┬─────────────┘
+                       │ HTTP
+                       ▼
+          ┌─────────────────┐         ┌─────────────────┐
+          │   API Gateway   │─────────│     Redis       │
+          └────────┬────────┘  Redis  │  (rate limit)   │
+                   │                  └─────────────────┘
+          ┌────────┴────────┐
+          │ HTTP            │ gRPC
+          ▼       gRPC      ▼
+  ┌──────────────┐  ┌──────────────┐         ┌─────────────────┐
+  │ Auth Service │─►│ User Service │◄────────│   Telegram Bot  │
+  └──────┬───────┘  └──────┬───────┘  gRPC   └─────────────────┘
+         │                 │
+         ▼                 ▼
+  ┌────────────┐    ┌────────────────┐
+  │ PostgreSQL │    │   PostgreSQL   │
+  │  (auth DB) │    │  (users DB)    │
+  └────────────┘    └────────────────┘
 ```
 
 ## 🚀 Quick Start
@@ -51,7 +84,8 @@ curl -X POST http://localhost/api/auth/register \
 ├── backend/
 │   ├── api-gateway/      # Entry point & proxy
 │   ├── auth-service/     # JWT authentication
-│   └── user-service/     # User management (HTTP + gRPC)
+│   ├── user-service/     # User management (HTTP + gRPC)
+│   └── tg-bot/           # Telegram bot integration
 ├── frontend/             # React app
 ├── proto/                # Protobuf definitions
 ├── .env.example          # Environment variables template
@@ -83,6 +117,7 @@ curl -X POST http://localhost/api/auth/register \
 
 **Infrastructure:**
 - Docker & Docker Compose
+- Caddy (reverse proxy / TLS)
 - Nginx (reverse proxy)
 - Buf (protobuf code generation)
 
