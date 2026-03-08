@@ -22,6 +22,7 @@ type UserService interface {
 	CheckUserExistsByEmail(ctx context.Context, email string) (bool, error)
 	RegisterUser(ctx context.Context, email string, hashedPassword []byte) (string, error)
 	GetAllUsers(ctx context.Context) ([]*UserWithoutPassword, error)
+	GetUsersCount(ctx context.Context) (int32, error)
 }
 
 type userService struct {
@@ -30,6 +31,10 @@ type userService struct {
 
 func NewUserService(repo repository.UserGormRepository) UserService {
 	return &userService{repo}
+}
+
+func (s *userService) GetUsersCount(ctx context.Context) (int32, error) {
+	return s.repo.GetUsersCount(ctx)
 }
 
 func (s *userService) GetUserByEmail(ctx context.Context, email string) (*User, error) {

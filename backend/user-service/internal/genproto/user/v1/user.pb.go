@@ -521,6 +521,86 @@ func (x *GetAllUsersResponse) GetUsers() []*User {
 	return nil
 }
 
+type GetUsersCountRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetUsersCountRequest) Reset() {
+	*x = GetUsersCountRequest{}
+	mi := &file_user_v1_user_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetUsersCountRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetUsersCountRequest) ProtoMessage() {}
+
+func (x *GetUsersCountRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_user_v1_user_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetUsersCountRequest.ProtoReflect.Descriptor instead.
+func (*GetUsersCountRequest) Descriptor() ([]byte, []int) {
+	return file_user_v1_user_proto_rawDescGZIP(), []int{11}
+}
+
+type GetUsersCountResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Count         int32                  `protobuf:"varint,1,opt,name=count,proto3" json:"count,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetUsersCountResponse) Reset() {
+	*x = GetUsersCountResponse{}
+	mi := &file_user_v1_user_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetUsersCountResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetUsersCountResponse) ProtoMessage() {}
+
+func (x *GetUsersCountResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_user_v1_user_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetUsersCountResponse.ProtoReflect.Descriptor instead.
+func (*GetUsersCountResponse) Descriptor() ([]byte, []int) {
+	return file_user_v1_user_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *GetUsersCountResponse) GetCount() int32 {
+	if x != nil {
+		return x.Count
+	}
+	return 0
+}
+
 var File_user_v1_user_proto protoreflect.FileDescriptor
 
 const file_user_v1_user_proto_rawDesc = "" +
@@ -549,13 +629,17 @@ const file_user_v1_user_proto_rawDesc = "" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"\x14\n" +
 	"\x12GetAllUsersRequest\":\n" +
 	"\x13GetAllUsersResponse\x12#\n" +
-	"\x05users\x18\x01 \x03(\v2\r.user.v1.UserR\x05users2\xac\x03\n" +
+	"\x05users\x18\x01 \x03(\v2\r.user.v1.UserR\x05users\"\x16\n" +
+	"\x14GetUsersCountRequest\"-\n" +
+	"\x15GetUsersCountResponse\x12\x14\n" +
+	"\x05count\x18\x01 \x01(\x05R\x05count2\xfc\x03\n" +
 	"\vUserService\x12Q\n" +
 	"\x0eGetUserByEmail\x12\x1e.user.v1.GetUserByEmailRequest\x1a\x1f.user.v1.GetUserByEmailResponse\x12H\n" +
 	"\vGetUserByID\x12\x1b.user.v1.GetUserByIDRequest\x1a\x1c.user.v1.GetUserByIDResponse\x12i\n" +
 	"\x16CheckUserExistsByEmail\x12&.user.v1.CheckUserExistsByEmailRequest\x1a'.user.v1.CheckUserExistsByEmailResponse\x12K\n" +
 	"\fRegisterUser\x12\x1c.user.v1.RegisterUserRequest\x1a\x1d.user.v1.RegisterUserResponse\x12H\n" +
-	"\vGetAllUsers\x12\x1b.user.v1.GetAllUsersRequest\x1a\x1c.user.v1.GetAllUsersResponseBu\n" +
+	"\vGetAllUsers\x12\x1b.user.v1.GetAllUsersRequest\x1a\x1c.user.v1.GetAllUsersResponse\x12N\n" +
+	"\rGetUsersCount\x12\x1d.user.v1.GetUsersCountRequest\x1a\x1e.user.v1.GetUsersCountResponseBu\n" +
 	"\vcom.user.v1B\tUserProtoP\x01Z\x1ego-jwt-auth/gen/user/v1;userv1\xa2\x02\x03UXX\xaa\x02\aUser.V1\xca\x02\aUser\\V1\xe2\x02\x13User\\V1\\GPBMetadata\xea\x02\bUser::V1b\x06proto3"
 
 var (
@@ -570,7 +654,7 @@ func file_user_v1_user_proto_rawDescGZIP() []byte {
 	return file_user_v1_user_proto_rawDescData
 }
 
-var file_user_v1_user_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
+var file_user_v1_user_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_user_v1_user_proto_goTypes = []any{
 	(*User)(nil),                           // 0: user.v1.User
 	(*GetUserByEmailRequest)(nil),          // 1: user.v1.GetUserByEmailRequest
@@ -583,6 +667,8 @@ var file_user_v1_user_proto_goTypes = []any{
 	(*RegisterUserResponse)(nil),           // 8: user.v1.RegisterUserResponse
 	(*GetAllUsersRequest)(nil),             // 9: user.v1.GetAllUsersRequest
 	(*GetAllUsersResponse)(nil),            // 10: user.v1.GetAllUsersResponse
+	(*GetUsersCountRequest)(nil),           // 11: user.v1.GetUsersCountRequest
+	(*GetUsersCountResponse)(nil),          // 12: user.v1.GetUsersCountResponse
 }
 var file_user_v1_user_proto_depIdxs = []int32{
 	0,  // 0: user.v1.GetUserByEmailResponse.user:type_name -> user.v1.User
@@ -593,13 +679,15 @@ var file_user_v1_user_proto_depIdxs = []int32{
 	5,  // 5: user.v1.UserService.CheckUserExistsByEmail:input_type -> user.v1.CheckUserExistsByEmailRequest
 	7,  // 6: user.v1.UserService.RegisterUser:input_type -> user.v1.RegisterUserRequest
 	9,  // 7: user.v1.UserService.GetAllUsers:input_type -> user.v1.GetAllUsersRequest
-	2,  // 8: user.v1.UserService.GetUserByEmail:output_type -> user.v1.GetUserByEmailResponse
-	4,  // 9: user.v1.UserService.GetUserByID:output_type -> user.v1.GetUserByIDResponse
-	6,  // 10: user.v1.UserService.CheckUserExistsByEmail:output_type -> user.v1.CheckUserExistsByEmailResponse
-	8,  // 11: user.v1.UserService.RegisterUser:output_type -> user.v1.RegisterUserResponse
-	10, // 12: user.v1.UserService.GetAllUsers:output_type -> user.v1.GetAllUsersResponse
-	8,  // [8:13] is the sub-list for method output_type
-	3,  // [3:8] is the sub-list for method input_type
+	11, // 8: user.v1.UserService.GetUsersCount:input_type -> user.v1.GetUsersCountRequest
+	2,  // 9: user.v1.UserService.GetUserByEmail:output_type -> user.v1.GetUserByEmailResponse
+	4,  // 10: user.v1.UserService.GetUserByID:output_type -> user.v1.GetUserByIDResponse
+	6,  // 11: user.v1.UserService.CheckUserExistsByEmail:output_type -> user.v1.CheckUserExistsByEmailResponse
+	8,  // 12: user.v1.UserService.RegisterUser:output_type -> user.v1.RegisterUserResponse
+	10, // 13: user.v1.UserService.GetAllUsers:output_type -> user.v1.GetAllUsersResponse
+	12, // 14: user.v1.UserService.GetUsersCount:output_type -> user.v1.GetUsersCountResponse
+	9,  // [9:15] is the sub-list for method output_type
+	3,  // [3:9] is the sub-list for method input_type
 	3,  // [3:3] is the sub-list for extension type_name
 	3,  // [3:3] is the sub-list for extension extendee
 	0,  // [0:3] is the sub-list for field type_name
@@ -616,7 +704,7 @@ func file_user_v1_user_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_user_v1_user_proto_rawDesc), len(file_user_v1_user_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   11,
+			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

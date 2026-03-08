@@ -102,8 +102,8 @@ services:
         APP_PORT: ${API_GATEWAY_INTERNAL_PORT}
     env_file:
       - .env
-#    ports:
-#      - "${API_GATEWAY_EXTERNAL_PORT}:${API_GATEWAY_INTERNAL_PORT}"
+    #    ports:
+    #      - "${API_GATEWAY_EXTERNAL_PORT}:${API_GATEWAY_INTERNAL_PORT}"
     #    expose:
     #      - "${API_GATEWAY_INTERNAL_PORT}"
     networks:
@@ -132,8 +132,8 @@ services:
         APP_PORT: ${API_AUTH_SERVICE_INTERNAL_PORT}
     env_file:
       - .env
-#    ports:
-#      - "${API_AUTH_SERVICE_EXTERNAL_PORT}:${API_AUTH_SERVICE_INTERNAL_PORT}"
+    #    ports:
+    #      - "${API_AUTH_SERVICE_EXTERNAL_PORT}:${API_AUTH_SERVICE_INTERNAL_PORT}"
     depends_on:
       migrator-auth:
         condition: service_completed_successfully
@@ -157,8 +157,8 @@ services:
         APP_PORT: ${API_USER_SERVICE_INTERNAL_PORT}
     env_file:
       - .env
-#    ports:
-#      - "${API_USER_SERVICE_EXTERNAL_PORT}:${API_USER_SERVICE_INTERNAL_PORT}"
+    #    ports:
+    #      - "${API_USER_SERVICE_EXTERNAL_PORT}:${API_USER_SERVICE_INTERNAL_PORT}"
     depends_on:
       migrator-user:
         condition: service_completed_successfully
@@ -173,6 +173,17 @@ services:
       start_period: 5s
       start_interval: 1s
 
+  tg-bot:
+    build:
+      context: "./backend/tg-bot"
+    depends_on:
+      user-service:
+        condition: service_healthy
+    networks:
+      app_network:
+    env_file:
+      - .env
+
   client:
     env_file:
       - .env
@@ -182,8 +193,8 @@ services:
         #        VITE_API_URL: ${API_GATEWAY_EXTERNAL_URL}
         VITE_API_URL: /api
         APP_PORT: ${CLIENT_INTERNAL_PORT}
-#    ports:
-#      - "${CLIENT_EXTERNAL_PORT}:${CLIENT_INTERNAL_PORT}"
+    #    ports:
+    #      - "${CLIENT_EXTERNAL_PORT}:${CLIENT_INTERNAL_PORT}"
     depends_on:
       api-gateway:
         condition: service_started

@@ -11,6 +11,7 @@ service UserService {
   rpc CheckUserExistsByEmail(CheckUserExistsByEmailRequest) returns (CheckUserExistsByEmailResponse);
   rpc RegisterUser(RegisterUserRequest) returns (RegisterUserResponse);
   rpc GetAllUsers(GetAllUsersRequest) returns (GetAllUsersResponse);
+  rpc GetUsersCount(GetUsersCountRequest) returns (GetUsersCountResponse);
 }
 
 message User {
@@ -51,4 +52,9 @@ message RegisterUserResponse {
 message GetAllUsersRequest {}
 message GetAllUsersResponse {
   repeated User users = 1;
+}
+
+message GetUsersCountRequest {}
+message GetUsersCountResponse {
+  int32 count = 1;
 }
