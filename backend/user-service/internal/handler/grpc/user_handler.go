@@ -39,6 +39,17 @@ func NewUserHandler(s service.UserService) *UserHandler {
 //	}, nil
 //}
 
+func (h *UserHandler) GetUsersCount(ctx context.Context, req *userpb.GetUsersCountRequest) (*userpb.GetUsersCountResponse, error) {
+	count, err := h.userService.GetUsersCount(ctx)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "error getting users count: %v", err)
+	}
+
+	return &userpb.GetUsersCountResponse{
+		Count: count,
+	}, nil
+}
+
 func (h *UserHandler) GetUserByEmail(ctx context.Context, req *userpb.GetUserByEmailRequest) (*userpb.GetUserByEmailResponse, error) {
 	if req.Email == "" {
 		return nil, status.Error(codes.InvalidArgument, "email is required")

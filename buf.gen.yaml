@@ -27,5 +27,16 @@ plugins:
     out: backend/user-service/internal/genproto
     opt: paths=source_relative
 
+  # tg-bot
+  # 1. Generating Go structures
+  - remote: buf.build/protocolbuffers/go
+    out: backend/tg-bot/internal/genproto
+    opt: paths=source_relative
+
+  # 2. Generating gRPC client/server
+  - remote: buf.build/grpc/go
+    out: backend/tg-bot/internal/genproto
+    opt: paths=source_relative
+
 inputs:
     - directory: proto

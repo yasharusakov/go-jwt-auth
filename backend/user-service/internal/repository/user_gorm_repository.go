@@ -15,6 +15,7 @@ type UserGormRepository interface {
 	CheckUserExistsByEmail(ctx context.Context, email string) (bool, error)
 	RegisterUser(ctx context.Context, email string, hashedPassword []byte) (string, error)
 	GetAllUsers(ctx context.Context) ([]*entity.User, error)
+	GetUsersCount(ctx context.Context) (int32, error)
 }
 
 type userGormRepository struct {
@@ -23,6 +24,15 @@ type userGormRepository struct {
 
 func NewUserGormRepository(db *gorm.DB) UserGormRepository {
 	return &userGormRepository{db: db}
+}
+
+func (u *userGormRepository) GetUsersCount(ctx context.Context) (int32, error) {
+	var count int64
+	result := u.db.WithContext(ctx).Model(&entity.User{}).Count(&count)
+	if result.Error != nil {
+		return 0, fmt.Errorf("error counting users: %w", result.Error)
+	}
+	return int32(count), nil
 }
 
 func (u *userGormRepository) GetUserByEmail(ctx context.Context, email string) (*entity.User, error) {
