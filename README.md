@@ -4,7 +4,53 @@ A full-stack JWT authentication system built with microservices architecture.
 
 ## 🏗 Architecture
 
-<img width="2350" height="3270" alt="Untitled-2026-03-16-1547" src="https://github.com/user-attachments/assets/68596b26-5b60-4a46-91a2-cc4d6e110d26" />
+```mermaid
+    graph TD
+    %% Nodes (Components)
+    Client[💻 Client]
+    
+    Caddy[🐋 Caddy]
+    Nginx[🐋 Nginx]
+    Gateway[🐋 API GATEWAY]
+    Redis[(🐋 Redis)]
+    
+    TgBot[🐋 TG BOT]
+    
+    UserService[🐋 User Service<br/><i>/api/users/get-all</i>]
+    
+    AuthService[🐋 Auth Service<br/><i>/api/auth/register</i><br/><i>/api/auth/login</i><br/><i>/api/auth/logout</i><br/><i>/api/auth/refresh</i>]
+    
+    UserDB[(🐋 🐘 User DB)]
+    AuthDB[(🐋 🐘 Auth DB)]
+
+    %% Connections
+    Client --> Caddy
+    Caddy -->|HTTP| Nginx
+    Nginx -->|HTTP| Gateway
+    
+    Gateway -->|Rate Limiter<br>middleware| Redis
+    
+    Gateway -->|HTTP| UserService
+    Gateway -->|HTTP| AuthService
+    
+    AuthService -->|gRPC| UserService
+    
+    TgBot -->|gRPC| UserService
+    
+    UserService --> UserDB
+    AuthService --> AuthDB
+    
+    %% Styling
+    style Redis fill:#5a2b2b,stroke:#ff6b6b,stroke-width:2px,color:#fff
+    style Caddy fill:#2d3436,color:#fff
+    style Nginx fill:#2d3436,color:#fff
+    style Gateway fill:#2d3436,color:#fff
+    style UserService fill:#2d3436,color:#fff
+    style AuthService fill:#2d3436,color:#fff
+    style TgBot fill:#2d3436,color:#fff
+    style UserDB fill:#2d3436,color:#fff
+    style AuthDB fill:#2d3436,color:#fff
+```
 
 ## 🚀 Quick Start
 
