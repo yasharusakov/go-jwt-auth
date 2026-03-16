@@ -4,7 +4,7 @@ A full-stack JWT authentication system built with microservices architecture.
 
 ## 🏗 Architecture
 
-<img width="2350" height="3270" alt="go-jwt-auth" src="https://github.com/user-attachments/assets/1de2d5cf-2126-4838-a251-315a567d5896" />
+<img width="2350" height="3270" alt="Untitled-2026-03-16-1547" src="https://github.com/user-attachments/assets/68596b26-5b60-4a46-91a2-cc4d6e110d26" />
 
 ## 🚀 Quick Start
 
