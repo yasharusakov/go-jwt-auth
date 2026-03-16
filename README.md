@@ -4,44 +4,7 @@ A full-stack JWT authentication system built with microservices architecture.
 
 ## 🏗 Architecture
 
-```
-                 Browser
-                    │
-                    │ HTTP
-                    ▼
-          ┌─────────────────┐
-          │      Caddy      │
-          │ (Reverse Proxy) │
-          └────────┬────────┘
-                   │ HTTP
-                   ▼
-          ┌──────────────────────────┐
-          │          Nginx           │
-          │  ┌────────────────────┐  │
-          │  │   React Frontend   │  │
-          │  │    (TypeScript)    │  │
-          │  └────────────────────┘  │
-          │                          │
-          └────────────┬─────────────┘
-                       │ HTTP
-                       ▼
-          ┌─────────────────┐         ┌─────────────────┐
-          │   API Gateway   │─────────│     Redis       │
-          └────────┬────────┘  Redis  │  (rate limit)   │
-                   │                  └─────────────────┘
-          ┌────────┴────────┐
-          │ HTTP            │ gRPC
-          ▼       gRPC      ▼
-  ┌──────────────┐  ┌──────────────┐         ┌─────────────────┐
-  │ Auth Service │─►│ User Service │◄────────│   Telegram Bot  │
-  └──────┬───────┘  └──────┬───────┘  gRPC   └─────────────────┘
-         │                 │
-         ▼                 ▼
-  ┌────────────┐    ┌────────────────┐
-  │ PostgreSQL │    │   PostgreSQL   │
-  │  (auth DB) │    │  (users DB)    │
-  └────────────┘    └────────────────┘
-```
+<img width="2350" height="3270" alt="go-jwt-auth" src="https://github.com/user-attachments/assets/1de2d5cf-2126-4838-a251-315a567d5896" />
 
 ## 🚀 Quick Start
 
